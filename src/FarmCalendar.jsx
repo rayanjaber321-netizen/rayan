@@ -120,6 +120,27 @@ export default function FarmCalendar() {
     return farmPrices[slot][group];
   }
 
+  function getSpillover(day) {
+    if (day <= 1) return null;
+    const prevKey = dateKey(year, month, day - 1);
+    for (const slot of ["night", "day"]) {
+      const b = farmBookings[`${prevKey}_${slot}`];
+      if (b && b.startTime && b.endTime && b.endTime <= b.startTime) {
+        return { key: `${prevKey}_${slot}`, booking: b };
+      }
+    }
+    return null;
+  }
+
+  function openModalByKey(key) {
+    const existing = farmBookings[key];
+    if (!existing) return;
+    const [dateStr, slot] = key.split("_");
+    const day = Number(dateStr.split("-")[2]);
+    setForm({ ...emptyForm, ...existing });
+    setModal({ key, slot, day });
+  }
+
   function openModal(day, slot) {
     const key = `${dateKey(year, month, day)}_${slot}`;
     const existing = farmBookings[key];
@@ -254,17 +275,32 @@ export default function FarmCalendar() {
           const k = dateKey(year, month, d);
           const dayBooked = farmBookings[`${k}_day`];
           const nightBooked = farmBookings[`${k}_night`];
+          const spillover = getSpillover(d);
+          const daySpillover = !dayBooked && spillover && spillover.booking.endTime > DEFAULT_TIMES.day.start ? spillover : null;
+          const nightSpillover = !nightBooked && spillover && spillover.booking.endTime > DEFAULT_TIMES.night.start ? spillover : null;
+          const dayDisplay = dayBooked || daySpillover?.booking;
+          const nightDisplay = nightBooked || nightSpillover?.booking;
           const isToday = d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
           return (
             <div key={idx} style={{ ...styles.dayCell, ...(isToday ? styles.dayCellToday : {}) }}>
               <div className="fc-num" style={styles.dayNum}>{d}</div>
-              <div className="fc-cellhalf" onClick={() => openModal(d, "day")} style={{ ...styles.slotHalf, background: dayBooked ? "#C9D3A9" : "#F1EEE3" }} title="فترة نهارية">
-                <Sun size={11} color={dayBooked ? "#3B4520" : "#A6A28E"} />
-                {dayBooked && <span style={styles.slotName}>{dayBooked.customer}</span>}
+              <div
+                className="fc-cellhalf"
+                onClick={() => (daySpillover ? openModalByKey(daySpillover.key) : openModal(d, "day"))}
+                style={{ ...styles.slotHalf, background: dayDisplay ? "#C9D3A9" : "#F1EEE3" }}
+                title={daySpillover ? `امتداد حجز حتى ${fmtTime12(daySpillover.booking.endTime)}` : "فترة نهارية"}
+              >
+                <Sun size={11} color={dayDisplay ? "#3B4520" : "#A6A28E"} />
+                {dayDisplay && <span style={styles.slotName}>{dayDisplay.customer}</span>}
               </div>
-              <div className="fc-cellhalf" onClick={() => openModal(d, "night")} style={{ ...styles.slotHalf, background: nightBooked ? "#34345C" : "#E7E3D5" }} title="فترة سهرة">
-                <Moon size={11} color={nightBooked ? "#DEDCEE" : "#A6A28E"} />
-                {nightBooked && <span style={{ ...styles.slotName, color: "#EDECF6" }}>{nightBooked.customer}</span>}
+              <div
+                className="fc-cellhalf"
+                onClick={() => (nightSpillover ? openModalByKey(nightSpillover.key) : openModal(d, "night"))}
+                style={{ ...styles.slotHalf, background: nightDisplay ? "#34345C" : "#E7E3D5" }}
+                title={nightSpillover ? `امتداد حجز حتى ${fmtTime12(nightSpillover.booking.endTime)}` : "فترة سهرة"}
+              >
+                <Moon size={11} color={nightDisplay ? "#DEDCEE" : "#A6A28E"} />
+                {nightDisplay && <span style={{ ...styles.slotName, color: "#EDECF6" }}>{nightDisplay.customer}</span>}
               </div>
             </div>
           );
