@@ -48,7 +48,7 @@ function loadPersisted() {
   }
 }
 
-const emptyForm = { customer: "", phone: "", base: 0, discount: 0, discountReason: "", paidAmount: 0, method: "نقدي", notes: "" };
+const emptyForm = { customer: "", phone: "", base: 0, discount: 0, discountReason: "", depositAmount: 0, depositMethod: "نقدي", remainingMethod: "نقدي", notes: "" };
 const emptyFarmDraft = { name: "", location: "" };
 
 const initialDefaults = {
@@ -99,7 +99,7 @@ export default function FarmCalendar() {
       count += 1;
       const final = Math.max(0, Number(b.base) - Number(b.discount || 0));
       revenue += final;
-      remaining += Math.max(0, final - Number(b.paidAmount || 0));
+      remaining += Math.max(0, final - Number(b.depositAmount || 0));
     });
     return { count, revenue, remaining };
   }, [farmBookings, year, month]);
@@ -113,7 +113,7 @@ export default function FarmCalendar() {
   function openModal(day, slot) {
     const key = `${dateKey(year, month, day)}_${slot}`;
     const existing = farmBookings[key];
-    setForm(existing ? { ...existing } : { ...emptyForm, base: priceFor(day, slot) });
+    setForm(existing ? { ...emptyForm, ...existing } : { ...emptyForm, base: priceFor(day, slot) });
     setModal({ key, slot, day });
   }
   function closeModal() { setModal(null); setForm(emptyForm); }
@@ -124,7 +124,7 @@ export default function FarmCalendar() {
       ...prev,
       [selectedFarmId]: {
         ...prev[selectedFarmId],
-        [modal.key]: { ...form, base: Number(form.base) || 0, discount: Number(form.discount) || 0, paidAmount: Number(form.paidAmount) || 0 },
+        [modal.key]: { ...form, base: Number(form.base) || 0, discount: Number(form.discount) || 0, depositAmount: Number(form.depositAmount) || 0 },
       },
     }));
     closeModal();
@@ -173,6 +173,7 @@ export default function FarmCalendar() {
   }
 
   const final = Math.max(0, Number(form.base || 0) - Number(form.discount || 0));
+  const remainingAmount = Math.max(0, final - Number(form.depositAmount || 0));
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   return (
@@ -298,17 +299,28 @@ export default function FarmCalendar() {
 
               <div style={styles.finalRow}><span style={styles.label}>السعر النهائي</span><span className="fc-num" style={styles.finalPrice}>{fmtMoney(final)}</span></div>
 
-              <label style={styles.label}>طريقة الدفع</label>
+              <label style={styles.label}>مبلغ العربون (د.أ)</label>
+              <input className="fc-input fc-num" type="number" style={styles.input} value={form.depositAmount} onChange={(e) => setForm({ ...form, depositAmount: e.target.value })} />
+
+              <label style={styles.label}>طريقة دفع العربون</label>
               <div style={styles.methodRow}>
                 {PAYMENT_METHODS.map(({ id, label, icon: Icon }) => (
-                  <button key={id} className="fc-btn" onClick={() => setForm({ ...form, method: id })} style={{ ...styles.methodBtn, ...(form.method === id ? styles.methodBtnActive : {}) }}>
+                  <button key={id} className="fc-btn" onClick={() => setForm({ ...form, depositMethod: id })} style={{ ...styles.methodBtn, ...(form.depositMethod === id ? styles.methodBtnActive : {}) }}>
                     <Icon size={14} />{label}
                   </button>
                 ))}
               </div>
 
-              <label style={styles.label}>المبلغ المدفوع (د.أ)</label>
-              <input className="fc-input fc-num" type="number" style={styles.input} value={form.paidAmount} onChange={(e) => setForm({ ...form, paidAmount: e.target.value })} />
+              <div style={styles.finalRow}><span style={styles.label}>المبلغ المتبقي</span><span className="fc-num" style={styles.finalPrice}>{fmtMoney(remainingAmount)}</span></div>
+
+              <label style={styles.label}>طريقة دفع الباقي</label>
+              <div style={styles.methodRow}>
+                {PAYMENT_METHODS.map(({ id, label, icon: Icon }) => (
+                  <button key={id} className="fc-btn" onClick={() => setForm({ ...form, remainingMethod: id })} style={{ ...styles.methodBtn, ...(form.remainingMethod === id ? styles.methodBtnActive : {}) }}>
+                    <Icon size={14} />{label}
+                  </button>
+                ))}
+              </div>
 
               <label style={styles.label}><StickyNote size={13} /> ملاحظات</label>
               <textarea className="fc-textarea" style={styles.textarea} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="ملاحظات إضافية" rows={2} />
