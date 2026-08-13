@@ -13,12 +13,22 @@ const PRICE_GROUPS = [
   { key: "B", label: "الخميس والسبت" },
   { key: "C", label: "الجمعة" },
 ];
+const DEFAULT_TIMES = {
+  day: { start: "10:00", end: "21:00" },
+  night: { start: "22:00", end: "08:00" },
+};
 
 const STORAGE_KEY = "farm-calendar-state-v1";
 
 function pad(n) { return String(n).padStart(2, "0"); }
 function dateKey(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
 function fmtMoney(n) { return `${(Math.round(n * 100) / 100).toLocaleString("en-US")} د.أ`; }
+function fmtTime12(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  const period = h < 12 ? "صباحًا" : "مساءً";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${pad(m)} ${period}`;
+}
 function groupForWeekday(weekday) {
   if (weekday === 5) return "C";
   if (weekday === 4 || weekday === 6) return "B";
@@ -48,7 +58,7 @@ function loadPersisted() {
   }
 }
 
-const emptyForm = { customer: "", phone: "", base: 0, discount: 0, discountReason: "", depositAmount: 0, depositMethod: "نقدي", remainingMethod: "نقدي", notes: "" };
+const emptyForm = { customer: "", phone: "", base: 0, discount: 0, discountReason: "", startTime: "", endTime: "", depositAmount: 0, depositMethod: "نقدي", remainingMethod: "نقدي", notes: "" };
 const emptyFarmDraft = { name: "", location: "" };
 
 const initialDefaults = {
@@ -113,7 +123,8 @@ export default function FarmCalendar() {
   function openModal(day, slot) {
     const key = `${dateKey(year, month, day)}_${slot}`;
     const existing = farmBookings[key];
-    setForm(existing ? { ...emptyForm, ...existing } : { ...emptyForm, base: priceFor(day, slot) });
+    const defaults = DEFAULT_TIMES[slot];
+    setForm(existing ? { ...emptyForm, ...existing } : { ...emptyForm, base: priceFor(day, slot), startTime: defaults.start, endTime: defaults.end });
     setModal({ key, slot, day });
   }
   function closeModal() { setModal(null); setForm(emptyForm); }
@@ -175,6 +186,14 @@ export default function FarmCalendar() {
   const final = Math.max(0, Number(form.base || 0) - Number(form.discount || 0));
   const remainingAmount = Math.max(0, final - Number(form.depositAmount || 0));
   const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  let timeRangeLabel = "";
+  if (modal && form.startTime && form.endTime) {
+    const crossesMidnight = form.endTime <= form.startTime;
+    timeRangeLabel = crossesMidnight
+      ? `${fmtTime12(form.startTime)} ${modal.day} ← ${fmtTime12(form.endTime)} ${modal.day + 1 > daysInMonth ? 1 : modal.day + 1}`
+      : `${fmtTime12(form.startTime)} – ${fmtTime12(form.endTime)}`;
+  }
 
   return (
     <div dir="rtl" style={styles.wrap}>
@@ -268,11 +287,20 @@ export default function FarmCalendar() {
               </div>
               <button className="fc-btn" onClick={closeModal} style={styles.iconBtn} aria-label="إغلاق"><X size={18} color="#6B6355" /></button>
             </div>
-            <div style={styles.modalSub}>
-              {modal.slot === "day" ? "10:00 صباحًا – 9:00 مساءً" : `10:00 مساءً ${modal.day} ← 8:00 صباحًا ${modal.day + 1 > daysInMonth ? 1 : modal.day + 1}`}
-            </div>
+            <div style={styles.modalSub}>{timeRangeLabel}</div>
 
             <div style={styles.formGrid}>
+              <div style={styles.twoCol}>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>من الساعة</label>
+                  <input className="fc-input fc-num" type="time" style={styles.input} value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>إلى الساعة</label>
+                  <input className="fc-input fc-num" type="time" style={styles.input} value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} />
+                </div>
+              </div>
+
               <label style={styles.label}><User size={13} /> اسم العميل</label>
               <input className="fc-input" style={styles.input} value={form.customer} onChange={(e) => setForm({ ...form, customer: e.target.value })} placeholder="اسم العميل" />
 
