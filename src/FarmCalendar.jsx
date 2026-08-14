@@ -475,6 +475,18 @@ export default function FarmCalendar() {
 
               <label style={styles.label}><StickyNote size={13} /> ملاحظات</label>
               <textarea className="fc-textarea" style={styles.textarea} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="ملاحظات إضافية" rows={2} />
+
+              <div style={styles.priceGroupBlock}>
+                <div style={styles.priceGroupLabel}>تفصيل السعر النهائي</div>
+                <div style={styles.breakdownRow}><span>السعر الأساسي</span><span className="fc-num">{fmtMoney(Number(form.base) || 0)}</span></div>
+                {Number(form.extraGuestFee) > 0 && (
+                  <div style={styles.breakdownRow}><span>رسوم الأشخاص الإضافيين</span><span className="fc-num">+ {fmtMoney(Number(form.extraGuestFee))}</span></div>
+                )}
+                {Number(form.discount) > 0 && (
+                  <div style={styles.breakdownRow}><span>الخصم</span><span className="fc-num">- {fmtMoney(Number(form.discount))}</span></div>
+                )}
+                <div style={{ ...styles.breakdownRow, ...styles.breakdownTotal }}><span>الإجمالي</span><span className="fc-num">{fmtMoney(final)}</span></div>
+              </div>
             </div>
 
             <div style={styles.modalFooter}>
@@ -623,4 +635,6 @@ const styles = {
   farmRowLoc: { fontSize: 11, color: "#6B6355", display: "flex", alignItems: "center", gap: 3, marginTop: 2 },
   priceGroupBlock: { background: "#FFFFFF", border: "1px solid #DAD3BE", borderRadius: 8, padding: "8px 10px", marginTop: 6 },
   priceGroupLabel: { fontSize: 12, fontWeight: 500, color: "#23291F" },
+  breakdownRow: { display: "flex", justifyContent: "space-between", fontSize: 12, color: "#4A453A", padding: "4px 0" },
+  breakdownTotal: { borderTop: "1px solid #DAD3BE", marginTop: 4, paddingTop: 6, fontWeight: 500, color: "#BC6C25" },
 };
