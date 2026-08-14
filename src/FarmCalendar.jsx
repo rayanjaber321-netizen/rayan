@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { Sun, Moon, X, Settings, ChevronRight, ChevronLeft, Banknote, CreditCard, Landmark, Trash2, User, Phone, StickyNote, Plus, MapPin, Pencil, RefreshCw } from "lucide-react";
+import { Sun, Moon, X, Settings, ChevronRight, ChevronLeft, Banknote, CreditCard, Landmark, Trash2, User, Phone, StickyNote, Plus, MapPin, Pencil, RefreshCw, Wallet } from "lucide-react";
 
 const ARABIC_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 const WEEKDAYS = ["أحد","اثنين","ثلاثاء","أربعاء","خميس","جمعة","سبت"];
@@ -43,9 +43,11 @@ function addDays(dateStr, n) {
   const dt = new Date(y, m - 1, d + n);
   return dateKey(dt.getFullYear(), dt.getMonth(), dt.getDate());
 }
+function bookingFinal(b) {
+  return Math.max(0, Number(b.base) + Number(b.extraGuestFee || 0) - Number(b.discount || 0));
+}
 function isBookingSettled(b) {
-  const final = Math.max(0, Number(b.base) + Number(b.extraGuestFee || 0) - Number(b.discount || 0));
-  const remaining = Math.max(0, final - Number(b.depositAmount || 0));
+  const remaining = Math.max(0, bookingFinal(b) - Number(b.depositAmount || 0));
   return remaining <= 0 || !!b.remainingSettled;
 }
 function groupForWeekday(weekday) {
@@ -85,7 +87,9 @@ const initialDefaults = {
   selectedFarmId: "f1",
   prices: { f1: defaultPriceSet() },
   bookings: { f1: {} },
+  finances: {},
 };
+const emptyFinanceDraft = { label: "", amount: "" };
 
 export default function FarmCalendar() {
   const today = new Date();
@@ -96,6 +100,10 @@ export default function FarmCalendar() {
   const [selectedFarmId, setSelectedFarmId] = useState(persisted?.selectedFarmId || initialDefaults.selectedFarmId);
   const [prices, setPrices] = useState(persisted?.prices || initialDefaults.prices);
   const [bookings, setBookings] = useState(persisted?.bookings || initialDefaults.bookings);
+  const [finances, setFinances] = useState(persisted?.finances || initialDefaults.finances);
+  const [financeOpen, setFinanceOpen] = useState(false);
+  const [expenseDraft, setExpenseDraft] = useState(emptyFinanceDraft);
+  const [salaryDraft, setSalaryDraft] = useState(emptyFinanceDraft);
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -110,11 +118,11 @@ export default function FarmCalendar() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ farms, selectedFarmId, prices, bookings }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ farms, selectedFarmId, prices, bookings, finances }));
     } catch {
       // storage unavailable (private mode / quota) — state stays in memory only
     }
-  }, [farms, selectedFarmId, prices, bookings]);
+  }, [farms, selectedFarmId, prices, bookings, finances]);
 
   const year = current.getFullYear();
   const month = current.getMonth();
@@ -129,12 +137,28 @@ export default function FarmCalendar() {
     Object.entries(farmBookings).forEach(([k, b]) => {
       if (!k.startsWith(prefix)) return;
       count += 1;
-      const final = Math.max(0, Number(b.base) + Number(b.extraGuestFee || 0) - Number(b.discount || 0));
+      const final = bookingFinal(b);
       revenue += final;
       remaining += Math.max(0, final - Number(b.depositAmount || 0));
     });
     return { count, revenue, remaining };
   }, [farmBookings, year, month]);
+
+  const farmRevenue = useMemo(() => {
+    const prefix = `${year}-${pad(month + 1)}-`;
+    return farms.map((f) => {
+      const b = bookings[f.id] || {};
+      let revenue = 0;
+      Object.entries(b).forEach(([k, bk]) => {
+        if (k.startsWith(prefix)) revenue += bookingFinal(bk);
+      });
+      return { farm: f, revenue };
+    });
+  }, [farms, bookings, year, month]);
+  const totalRevenue = farmRevenue.reduce((s, r) => s + r.revenue, 0);
+  const totalExpenses = curFinances.expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
+  const totalSalaries = curFinances.salaries.reduce((s, e) => s + Number(e.amount || 0), 0);
+  const netIncome = totalRevenue - totalExpenses - totalSalaries;
 
   function priceFor(day, slot) {
     const weekday = new Date(year, month, day).getDay();
@@ -203,6 +227,23 @@ export default function FarmCalendar() {
     closeModal();
   }
   function changeMonth(delta) { setCurrent(new Date(year, month + delta, 1)); }
+
+  const financeMonthKey = `${year}-${pad(month + 1)}`;
+  const curFinances = finances[financeMonthKey] || { expenses: [], salaries: [] };
+
+  function addFinanceItem(type, label, amount) {
+    if (!label.trim() || !Number(amount)) return;
+    setFinances((prev) => {
+      const cur = prev[financeMonthKey] || { expenses: [], salaries: [] };
+      return { ...prev, [financeMonthKey]: { ...cur, [type]: [...cur[type], { id: `${type[0]}${Date.now()}`, label, amount: Number(amount) }] } };
+    });
+  }
+  function removeFinanceItem(type, id) {
+    setFinances((prev) => {
+      const cur = prev[financeMonthKey] || { expenses: [], salaries: [] };
+      return { ...prev, [financeMonthKey]: { ...cur, [type]: cur[type].filter((it) => it.id !== id) } };
+    });
+  }
 
   const PULL_THRESHOLD = 60;
   const PULL_MAX = 90;
@@ -301,9 +342,14 @@ export default function FarmCalendar() {
           <div style={styles.title}>كالندر حجوزات المزارع</div>
           <div style={styles.subtitle}>{farm?.location ? `${farm.name} — ${farm.location}` : farm?.name}</div>
         </div>
-        <button className="fc-btn" onClick={openFarmsTab} style={styles.settingsBtn} aria-label="الإعدادات">
-          <Settings size={18} color="#F7F3E9" />
-        </button>
+        <div style={styles.headerBtns}>
+          <button className="fc-btn" onClick={() => setFinanceOpen(true)} style={styles.settingsBtn} aria-label="الحسابات">
+            <Wallet size={18} color="#F7F3E9" />
+          </button>
+          <button className="fc-btn" onClick={openFarmsTab} style={styles.settingsBtn} aria-label="الإعدادات">
+            <Settings size={18} color="#F7F3E9" />
+          </button>
+        </div>
       </div>
 
       <div style={styles.farmChips}>
@@ -601,6 +647,76 @@ export default function FarmCalendar() {
           </div>
         </div>
       )}
+
+      {financeOpen && (
+        <div style={styles.overlay} onClick={() => setFinanceOpen(false)}>
+          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <div style={styles.modalTitle}>الحسابات</div>
+              <button className="fc-btn" onClick={() => setFinanceOpen(false)} style={styles.iconBtn} aria-label="إغلاق"><X size={18} color="#6B6355" /></button>
+            </div>
+
+            <div style={styles.monthNav}>
+              <button className="fc-btn" onClick={() => changeMonth(1)} style={styles.navBtn}><ChevronRight size={18} /></button>
+              <div style={styles.monthLabel}>{ARABIC_MONTHS[month]} {year}</div>
+              <button className="fc-btn" onClick={() => changeMonth(-1)} style={styles.navBtn}><ChevronLeft size={18} /></button>
+            </div>
+
+            <div style={styles.formGrid}>
+              <div style={styles.priceGroupBlock}>
+                <div style={styles.priceGroupLabel}>دخل المزارع</div>
+                {farmRevenue.map(({ farm: f, revenue }) => (
+                  <div key={f.id} style={styles.breakdownRow}><span>{f.name}</span><span className="fc-num">{fmtMoney(revenue)}</span></div>
+                ))}
+                <div style={{ ...styles.breakdownRow, ...styles.breakdownTotal }}><span>مجموع الإيرادات</span><span className="fc-num">{fmtMoney(totalRevenue)}</span></div>
+              </div>
+
+              <div style={styles.priceGroupBlock}>
+                <div style={styles.priceGroupLabel}>المصاريف الشهرية</div>
+                {curFinances.expenses.map((e) => (
+                  <div key={e.id} style={styles.breakdownRow}>
+                    <span>{e.label}</span>
+                    <span style={styles.financeItemRight}>
+                      <span className="fc-num">{fmtMoney(e.amount)}</span>
+                      <button className="fc-btn" onClick={() => removeFinanceItem("expenses", e.id)} style={styles.iconBtnSmall} aria-label="حذف"><Trash2 size={12} color="#791F1F" /></button>
+                    </span>
+                  </div>
+                ))}
+                <div style={styles.twoCol}>
+                  <input className="fc-input" style={styles.input} placeholder="اسم المصروف" value={expenseDraft.label} onChange={(e) => setExpenseDraft({ ...expenseDraft, label: e.target.value })} />
+                  <input className="fc-input fc-num" type="number" style={styles.input} placeholder="المبلغ" value={expenseDraft.amount} onChange={(e) => setExpenseDraft({ ...expenseDraft, amount: e.target.value })} />
+                </div>
+                <button className="fc-btn" onClick={() => { addFinanceItem("expenses", expenseDraft.label, expenseDraft.amount); setExpenseDraft(emptyFinanceDraft); }} style={{ ...styles.saveBtn, marginTop: 6, marginRight: 0 }}>إضافة مصروف</button>
+                <div style={{ ...styles.breakdownRow, ...styles.breakdownTotal }}><span>مجموع المصاريف</span><span className="fc-num">{fmtMoney(totalExpenses)}</span></div>
+              </div>
+
+              <div style={styles.priceGroupBlock}>
+                <div style={styles.priceGroupLabel}>الرواتب</div>
+                {curFinances.salaries.map((s) => (
+                  <div key={s.id} style={styles.breakdownRow}>
+                    <span>{s.label}</span>
+                    <span style={styles.financeItemRight}>
+                      <span className="fc-num">{fmtMoney(s.amount)}</span>
+                      <button className="fc-btn" onClick={() => removeFinanceItem("salaries", s.id)} style={styles.iconBtnSmall} aria-label="حذف"><Trash2 size={12} color="#791F1F" /></button>
+                    </span>
+                  </div>
+                ))}
+                <div style={styles.twoCol}>
+                  <input className="fc-input" style={styles.input} placeholder="اسم الموظف" value={salaryDraft.label} onChange={(e) => setSalaryDraft({ ...salaryDraft, label: e.target.value })} />
+                  <input className="fc-input fc-num" type="number" style={styles.input} placeholder="المبلغ" value={salaryDraft.amount} onChange={(e) => setSalaryDraft({ ...salaryDraft, amount: e.target.value })} />
+                </div>
+                <button className="fc-btn" onClick={() => { addFinanceItem("salaries", salaryDraft.label, salaryDraft.amount); setSalaryDraft(emptyFinanceDraft); }} style={{ ...styles.saveBtn, marginTop: 6, marginRight: 0 }}>إضافة راتب</button>
+                <div style={{ ...styles.breakdownRow, ...styles.breakdownTotal }}><span>مجموع الرواتب</span><span className="fc-num">{fmtMoney(totalSalaries)}</span></div>
+              </div>
+
+              <div style={styles.finalRow}>
+                <span style={styles.label}>الصافي</span>
+                <span className="fc-num" style={{ ...styles.finalPrice, color: netIncome >= 0 ? "#1F5C2E" : "#791F1F" }}>{fmtMoney(netIncome)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -611,6 +727,7 @@ const styles = {
   header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 },
   title: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 20, color: "#23291F" },
   subtitle: { fontSize: 12, color: "#6B6355", marginTop: 2 },
+  headerBtns: { display: "flex", gap: 6, flexShrink: 0 },
   settingsBtn: { background: "#34345C", borderRadius: 10, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
   farmChips: { display: "flex", gap: 6, overflowX: "auto", paddingBottom: 10, marginBottom: 4 },
   farmChip: { background: "#F1EEE3", border: "1px solid #DAD3BE", borderRadius: 20, padding: "6px 12px", fontSize: 12, color: "#4A453A" },
@@ -670,4 +787,5 @@ const styles = {
   priceGroupLabel: { fontSize: 12, fontWeight: 500, color: "#23291F" },
   breakdownRow: { display: "flex", justifyContent: "space-between", fontSize: 12, color: "#4A453A", padding: "4px 0" },
   breakdownTotal: { borderTop: "1px solid #DAD3BE", marginTop: 4, paddingTop: 6, fontWeight: 500, color: "#BC6C25" },
+  financeItemRight: { display: "flex", alignItems: "center", gap: 6 },
 };
