@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from "react";
-import { Sun, Moon, X, Settings, ChevronRight, ChevronLeft, Banknote, CreditCard, Landmark, Trash2, User, Phone, StickyNote, Plus, MapPin, Pencil } from "lucide-react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
+import { Sun, Moon, X, Settings, ChevronRight, ChevronLeft, Banknote, CreditCard, Landmark, Trash2, User, Phone, StickyNote, Plus, MapPin, Pencil, RefreshCw } from "lucide-react";
 
 const ARABIC_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 const WEEKDAYS = ["أحد","اثنين","ثلاثاء","أربعاء","خميس","جمعة","سبت"];
@@ -85,6 +85,9 @@ export default function FarmCalendar() {
   const [editingFarmId, setEditingFarmId] = useState(null);
   const [pricingFarmId, setPricingFarmId] = useState(persisted?.selectedFarmId || initialDefaults.selectedFarmId);
   const [draftPrices, setDraftPrices] = useState((persisted?.prices || initialDefaults.prices)[persisted?.selectedFarmId || initialDefaults.selectedFarmId] || defaultPriceSet());
+  const [pullDistance, setPullDistance] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const touchStartY = useRef(null);
 
   useEffect(() => {
     try {
@@ -171,6 +174,29 @@ export default function FarmCalendar() {
   }
   function changeMonth(delta) { setCurrent(new Date(year, month + delta, 1)); }
 
+  const PULL_THRESHOLD = 60;
+  const PULL_MAX = 90;
+  function handleTouchStart(e) {
+    if (modal || settingsOpen || refreshing) return;
+    if (window.scrollY > 0) return;
+    touchStartY.current = e.touches[0].clientY;
+  }
+  function handleTouchMove(e) {
+    if (touchStartY.current === null) return;
+    const delta = e.touches[0].clientY - touchStartY.current;
+    if (delta > 0) setPullDistance(Math.min(delta, PULL_MAX));
+  }
+  function handleTouchEnd() {
+    if (touchStartY.current === null) return;
+    touchStartY.current = null;
+    if (pullDistance > PULL_THRESHOLD) {
+      setRefreshing(true);
+      setTimeout(() => window.location.reload(), 300);
+    } else {
+      setPullDistance(0);
+    }
+  }
+
   function openFarmsTab() { setSettingsTab("farms"); setFarmDraft(emptyFarmDraft); setEditingFarmId(null); setSettingsOpen(true); }
   function openPricingTab(farmId) {
     setSettingsTab("pricing");
@@ -217,7 +243,7 @@ export default function FarmCalendar() {
   }
 
   return (
-    <div dir="rtl" style={styles.wrap}>
+    <div dir="rtl" style={styles.wrap} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;800&family=Tajawal:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap');
         .fc-num { font-family: 'IBM Plex Mono', monospace; }
@@ -227,7 +253,20 @@ export default function FarmCalendar() {
         .fc-cellhalf { transition: filter 0.12s ease; }
         .fc-cellhalf:hover { filter: brightness(0.94); }
         .fc-chip { transition: background 0.12s ease; white-space: nowrap; }
+        @keyframes fc-spin { to { transform: rotate(360deg); } }
+        .fc-spin { animation: fc-spin 0.6s linear infinite; }
       `}</style>
+
+      {(pullDistance > 0 || refreshing) && (
+        <div style={{ ...styles.pullIndicator, height: refreshing ? 40 : pullDistance }}>
+          <RefreshCw
+            size={16}
+            color="#6B6355"
+            className={refreshing ? "fc-spin" : ""}
+            style={refreshing ? {} : { transform: `rotate(${Math.min((pullDistance / PULL_THRESHOLD) * 360, 360)}deg)` }}
+          />
+        </div>
+      )}
 
       <div style={styles.header}>
         <div>
@@ -464,6 +503,7 @@ export default function FarmCalendar() {
 
 const styles = {
   wrap: { fontFamily: "'Tajawal', sans-serif", background: "#EAE4D6", color: "#23291F", borderRadius: 16, padding: "18px 14px 22px", maxWidth: 480, margin: "0 auto", boxSizing: "border-box" },
+  pullIndicator: { display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", transition: "height 0.15s ease" },
   header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 },
   title: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 20, color: "#23291F" },
   subtitle: { fontSize: 12, color: "#6B6355", marginTop: 2 },
