@@ -43,10 +43,10 @@ function addDays(dateStr, n) {
   const dt = new Date(y, m - 1, d + n);
   return dateKey(dt.getFullYear(), dt.getMonth(), dt.getDate());
 }
-function isBookingPending(b) {
+function isBookingSettled(b) {
   const final = Math.max(0, Number(b.base) + Number(b.extraGuestFee || 0) - Number(b.discount || 0));
   const remaining = Math.max(0, final - Number(b.depositAmount || 0));
-  return remaining > 0 && !b.remainingSettled;
+  return remaining <= 0 || !!b.remainingSettled;
 }
 function groupForWeekday(weekday) {
   if (weekday === 5) return "C";
@@ -354,7 +354,12 @@ export default function FarmCalendar() {
               >
                 <Sun size={11} color={dayResult ? "#3B4520" : "#A6A28E"} />
                 {dayResult && <span style={styles.slotName}>{dayResult.booking.customer}</span>}
-                {dayResult?.isPrimary && isBookingPending(dayResult.booking) && <span style={styles.pendingDot} title="بانتظار تحصيل الباقي" />}
+                {dayResult?.isPrimary && (
+                  <span
+                    style={{ ...styles.pendingDot, background: isBookingSettled(dayResult.booking) ? "#4E7A3D" : "#BC6C25" }}
+                    title={isBookingSettled(dayResult.booking) ? "تم استلام المبلغ بالكامل" : "بانتظار تحصيل الباقي"}
+                  />
+                )}
               </div>
               <div
                 className="fc-cellhalf"
@@ -364,7 +369,12 @@ export default function FarmCalendar() {
               >
                 <Moon size={11} color={nightResult ? "#DEDCEE" : "#A6A28E"} />
                 {nightResult && <span style={{ ...styles.slotName, color: "#EDECF6" }}>{nightResult.booking.customer}</span>}
-                {nightResult?.isPrimary && isBookingPending(nightResult.booking) && <span style={styles.pendingDot} />}
+                {nightResult?.isPrimary && (
+                  <span
+                    style={{ ...styles.pendingDot, background: isBookingSettled(nightResult.booking) ? "#4E7A3D" : "#BC6C25" }}
+                    title={isBookingSettled(nightResult.booking) ? "تم استلام المبلغ بالكامل" : "بانتظار تحصيل الباقي"}
+                  />
+                )}
               </div>
             </div>
           );
@@ -384,7 +394,11 @@ export default function FarmCalendar() {
               <div style={styles.modalTitleWrap}>
                 {modal.slot === "day" ? <Sun size={16} color="#4E5A31" /> : <Moon size={16} color="#34345C" />}
                 <div style={styles.modalTitle}>{modal.slot === "day" ? "فترة نهارية" : "فترة سهرة"} — {modal.day} {ARABIC_MONTHS[month]}</div>
-                {remainingAmount > 0 && !form.remainingSettled && <span style={styles.pendingBadge}>معلّق</span>}
+                {final > 0 && (
+                  <span style={{ ...styles.pendingBadge, ...(remainingAmount > 0 && !form.remainingSettled ? {} : styles.settledBadge) }}>
+                    {remainingAmount > 0 && !form.remainingSettled ? "معلّق" : "مؤكد"}
+                  </span>
+                )}
               </div>
               <button className="fc-btn" onClick={closeModal} style={styles.iconBtn} aria-label="إغلاق"><X size={18} color="#6B6355" /></button>
             </div>
@@ -627,6 +641,7 @@ const styles = {
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
   modalTitleWrap: { display: "flex", alignItems: "center", gap: 6 },
   pendingBadge: { fontSize: 10, fontWeight: 500, color: "#7A4A12", background: "#F3D9B1", borderRadius: 10, padding: "2px 8px" },
+  settledBadge: { color: "#1F5C2E", background: "#CFE8D1" },
   checkboxRow: { display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "#4A453A", background: "#FFFFFF", border: "1px solid #C9C0A8", borderRadius: 8, padding: "8px 10px", marginTop: 6, cursor: "pointer" },
   modalTitle: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 15 },
   iconBtn: { background: "transparent", padding: 4 },
