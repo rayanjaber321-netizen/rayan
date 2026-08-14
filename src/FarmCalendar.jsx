@@ -43,6 +43,11 @@ function addDays(dateStr, n) {
   const dt = new Date(y, m - 1, d + n);
   return dateKey(dt.getFullYear(), dt.getMonth(), dt.getDate());
 }
+function isBookingPending(b) {
+  const final = Math.max(0, Number(b.base) + Number(b.extraGuestFee || 0) - Number(b.discount || 0));
+  const remaining = Math.max(0, final - Number(b.depositAmount || 0));
+  return remaining > 0 && !b.remainingSettled;
+}
 function groupForWeekday(weekday) {
   if (weekday === 5) return "C";
   if (weekday === 4 || weekday === 6) return "B";
@@ -72,7 +77,7 @@ function loadPersisted() {
   }
 }
 
-const emptyForm = { customer: "", phone: "", base: 0, discount: 0, discountReason: "", startDate: "", startTime: "", endDate: "", endTime: "", guestCount: "", extraGuestFee: 0, depositAmount: 0, depositMethod: "نقدي", remainingMethod: "نقدي", notes: "" };
+const emptyForm = { customer: "", phone: "", base: 0, discount: 0, discountReason: "", startDate: "", startTime: "", endDate: "", endTime: "", guestCount: "", extraGuestFee: 0, depositAmount: 0, depositMethod: "نقدي", remainingMethod: "نقدي", remainingSettled: false, notes: "" };
 const emptyFarmDraft = { name: "", location: "" };
 
 const initialDefaults = {
@@ -184,7 +189,7 @@ export default function FarmCalendar() {
       ...prev,
       [selectedFarmId]: {
         ...prev[selectedFarmId],
-        [modal.key]: { ...form, base: Number(form.base) || 0, discount: Number(form.discount) || 0, guestCount: Number(form.guestCount) || 0, extraGuestFee: Number(form.extraGuestFee) || 0, depositAmount: Number(form.depositAmount) || 0 },
+        [modal.key]: { ...form, base: Number(form.base) || 0, discount: Number(form.discount) || 0, guestCount: Number(form.guestCount) || 0, extraGuestFee: Number(form.extraGuestFee) || 0, depositAmount: Number(form.depositAmount) || 0, remainingSettled: !!form.remainingSettled },
       },
     }));
     closeModal();
@@ -349,6 +354,7 @@ export default function FarmCalendar() {
               >
                 <Sun size={11} color={dayResult ? "#3B4520" : "#A6A28E"} />
                 {dayResult && <span style={styles.slotName}>{dayResult.booking.customer}</span>}
+                {dayResult?.isPrimary && isBookingPending(dayResult.booking) && <span style={styles.pendingDot} title="بانتظار تحصيل الباقي" />}
               </div>
               <div
                 className="fc-cellhalf"
@@ -358,6 +364,7 @@ export default function FarmCalendar() {
               >
                 <Moon size={11} color={nightResult ? "#DEDCEE" : "#A6A28E"} />
                 {nightResult && <span style={{ ...styles.slotName, color: "#EDECF6" }}>{nightResult.booking.customer}</span>}
+                {nightResult?.isPrimary && isBookingPending(nightResult.booking) && <span style={styles.pendingDot} />}
               </div>
             </div>
           );
@@ -377,6 +384,7 @@ export default function FarmCalendar() {
               <div style={styles.modalTitleWrap}>
                 {modal.slot === "day" ? <Sun size={16} color="#4E5A31" /> : <Moon size={16} color="#34345C" />}
                 <div style={styles.modalTitle}>{modal.slot === "day" ? "فترة نهارية" : "فترة سهرة"} — {modal.day} {ARABIC_MONTHS[month]}</div>
+                {remainingAmount > 0 && !form.remainingSettled && <span style={styles.pendingBadge}>معلّق</span>}
               </div>
               <button className="fc-btn" onClick={closeModal} style={styles.iconBtn} aria-label="إغلاق"><X size={18} color="#6B6355" /></button>
             </div>
@@ -472,6 +480,13 @@ export default function FarmCalendar() {
                   </button>
                 ))}
               </div>
+
+              {remainingAmount > 0 && (
+                <label className="fc-btn" style={styles.checkboxRow}>
+                  <input type="checkbox" checked={!!form.remainingSettled} onChange={(e) => setForm({ ...form, remainingSettled: e.target.checked })} />
+                  تم استلام المبلغ المتبقي من الزبون
+                </label>
+              )}
 
               <label style={styles.label}><StickyNote size={13} /> ملاحظات</label>
               <textarea className="fc-textarea" style={styles.textarea} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="ملاحظات إضافية" rows={2} />
@@ -602,6 +617,7 @@ const styles = {
   dayNum: { textAlign: "right", fontSize: 9, color: "#6B6355", padding: "2px 4px 0 4px" },
   slotHalf: { height: 27, display: "flex", alignItems: "center", justifyContent: "center", gap: 3, cursor: "pointer", overflow: "hidden" },
   slotName: { fontSize: 8, fontWeight: 500, color: "#3B4520", maxWidth: 48, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  pendingDot: { width: 6, height: 6, borderRadius: "50%", background: "#BC6C25", flexShrink: 0 },
   statsRow: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 16 },
   statCard: { background: "#F7F3E9", borderRadius: 10, padding: "10px 8px", textAlign: "center", border: "1px solid #DAD3BE" },
   statLabel: { fontSize: 10, color: "#6B6355", marginBottom: 4 },
@@ -610,6 +626,8 @@ const styles = {
   modal: { background: "#F7F3E9", borderRadius: 14, padding: 18, width: "100%", maxWidth: 380, maxHeight: "88vh", overflowY: "auto", boxSizing: "border-box" },
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
   modalTitleWrap: { display: "flex", alignItems: "center", gap: 6 },
+  pendingBadge: { fontSize: 10, fontWeight: 500, color: "#7A4A12", background: "#F3D9B1", borderRadius: 10, padding: "2px 8px" },
+  checkboxRow: { display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "#4A453A", background: "#FFFFFF", border: "1px solid #C9C0A8", borderRadius: 8, padding: "8px 10px", marginTop: 6, cursor: "pointer" },
   modalTitle: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 15 },
   iconBtn: { background: "transparent", padding: 4 },
   iconBtnSmall: { background: "transparent", padding: 4, display: "flex" },
