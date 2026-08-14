@@ -29,6 +29,20 @@ function fmtTime12(hhmm) {
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${h12}:${pad(m)} ${period}`;
 }
+function fmtDateShort(dateStr) {
+  const [, m, d] = dateStr.split("-").map(Number);
+  return `${d} ${ARABIC_MONTHS[m - 1]}`;
+}
+function toDateTime(dateStr, hhmm) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const [h, mi] = hhmm.split(":").map(Number);
+  return new Date(y, m - 1, d, h, mi);
+}
+function addDays(dateStr, n) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d + n);
+  return dateKey(dt.getFullYear(), dt.getMonth(), dt.getDate());
+}
 function groupForWeekday(weekday) {
   if (weekday === 5) return "C";
   if (weekday === 4 || weekday === 6) return "B";
@@ -58,7 +72,7 @@ function loadPersisted() {
   }
 }
 
-const emptyForm = { customer: "", phone: "", base: 0, discount: 0, discountReason: "", startTime: "", endTime: "", depositAmount: 0, depositMethod: "نقدي", remainingMethod: "نقدي", notes: "" };
+const emptyForm = { customer: "", phone: "", base: 0, discount: 0, discountReason: "", startDate: "", startTime: "", endDate: "", endTime: "", depositAmount: 0, depositMethod: "نقدي", remainingMethod: "نقدي", notes: "" };
 const emptyFarmDraft = { name: "", location: "" };
 
 const initialDefaults = {
@@ -123,13 +137,22 @@ export default function FarmCalendar() {
     return farmPrices[slot][group];
   }
 
-  function getSpillover(day) {
-    if (day <= 1) return null;
-    const prevKey = dateKey(year, month, day - 1);
-    for (const slot of ["night", "day"]) {
-      const b = farmBookings[`${prevKey}_${slot}`];
-      if (b && b.startTime && b.endTime && b.endTime <= b.startTime) {
-        return { key: `${prevKey}_${slot}`, booking: b };
+  function findOccupyingBooking(dateStr, slot) {
+    const exactKey = `${dateStr}_${slot}`;
+    const exact = farmBookings[exactKey];
+    if (exact) return { key: exactKey, booking: exact, isPrimary: true };
+
+    const defaults = DEFAULT_TIMES[slot];
+    const windowStart = toDateTime(dateStr, defaults.start);
+    const windowEnd = toDateTime(dateStr, defaults.end);
+    if (windowEnd <= windowStart) windowEnd.setDate(windowEnd.getDate() + 1);
+
+    for (const [key, b] of Object.entries(farmBookings)) {
+      if (!b.startDate || !b.startTime || !b.endDate || !b.endTime) continue;
+      const bStart = toDateTime(b.startDate, b.startTime);
+      const bEnd = toDateTime(b.endDate, b.endTime);
+      if (bStart < windowEnd && bEnd > windowStart) {
+        return { key, booking: b, isPrimary: false };
       }
     }
     return null;
@@ -145,10 +168,12 @@ export default function FarmCalendar() {
   }
 
   function openModal(day, slot) {
-    const key = `${dateKey(year, month, day)}_${slot}`;
+    const dateStr = dateKey(year, month, day);
+    const key = `${dateStr}_${slot}`;
     const existing = farmBookings[key];
     const defaults = DEFAULT_TIMES[slot];
-    setForm(existing ? { ...emptyForm, ...existing } : { ...emptyForm, base: priceFor(day, slot), startTime: defaults.start, endTime: defaults.end });
+    const endDateStr = defaults.end <= defaults.start ? addDays(dateStr, 1) : dateStr;
+    setForm(existing ? { ...emptyForm, ...existing } : { ...emptyForm, base: priceFor(day, slot), startDate: dateStr, startTime: defaults.start, endDate: endDateStr, endTime: defaults.end });
     setModal({ key, slot, day });
   }
   function closeModal() { setModal(null); setForm(emptyForm); }
@@ -232,14 +257,12 @@ export default function FarmCalendar() {
 
   const final = Math.max(0, Number(form.base || 0) - Number(form.discount || 0));
   const remainingAmount = Math.max(0, final - Number(form.depositAmount || 0));
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   let timeRangeLabel = "";
-  if (modal && form.startTime && form.endTime) {
-    const crossesMidnight = form.endTime <= form.startTime;
-    timeRangeLabel = crossesMidnight
-      ? `${fmtTime12(form.startTime)} ${modal.day} ← ${fmtTime12(form.endTime)} ${modal.day + 1 > daysInMonth ? 1 : modal.day + 1}`
-      : `${fmtTime12(form.startTime)} – ${fmtTime12(form.endTime)}`;
+  if (modal && form.startDate && form.startTime && form.endDate && form.endTime) {
+    timeRangeLabel = form.startDate === form.endDate
+      ? `${fmtDateShort(form.startDate)} — ${fmtTime12(form.startTime)} ← ${fmtTime12(form.endTime)}`
+      : `${fmtDateShort(form.startDate)} ${fmtTime12(form.startTime)} ← ${fmtDateShort(form.endDate)} ${fmtTime12(form.endTime)}`;
   }
 
   return (
@@ -312,34 +335,29 @@ export default function FarmCalendar() {
         {cells.map((d, idx) => {
           if (d === null) return <div key={idx} style={styles.blankCell} />;
           const k = dateKey(year, month, d);
-          const dayBooked = farmBookings[`${k}_day`];
-          const nightBooked = farmBookings[`${k}_night`];
-          const spillover = getSpillover(d);
-          const daySpillover = !dayBooked && spillover && spillover.booking.endTime > DEFAULT_TIMES.day.start ? spillover : null;
-          const nightSpillover = !nightBooked && spillover && spillover.booking.endTime > DEFAULT_TIMES.night.start ? spillover : null;
-          const dayDisplay = dayBooked || daySpillover?.booking;
-          const nightDisplay = nightBooked || nightSpillover?.booking;
+          const dayResult = findOccupyingBooking(k, "day");
+          const nightResult = findOccupyingBooking(k, "night");
           const isToday = d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
           return (
             <div key={idx} style={{ ...styles.dayCell, ...(isToday ? styles.dayCellToday : {}) }}>
               <div className="fc-num" style={styles.dayNum}>{d}</div>
               <div
                 className="fc-cellhalf"
-                onClick={() => (daySpillover ? openModalByKey(daySpillover.key) : openModal(d, "day"))}
-                style={{ ...styles.slotHalf, background: dayDisplay ? "#C9D3A9" : "#F1EEE3" }}
-                title={daySpillover ? `امتداد حجز حتى ${fmtTime12(daySpillover.booking.endTime)}` : "فترة نهارية"}
+                onClick={() => (dayResult && !dayResult.isPrimary ? openModalByKey(dayResult.key) : openModal(d, "day"))}
+                style={{ ...styles.slotHalf, background: dayResult ? "#C9D3A9" : "#F1EEE3" }}
+                title={dayResult && !dayResult.isPrimary ? `امتداد حجز حتى ${fmtDateShort(dayResult.booking.endDate)} ${fmtTime12(dayResult.booking.endTime)}` : "فترة نهارية"}
               >
-                <Sun size={11} color={dayDisplay ? "#3B4520" : "#A6A28E"} />
-                {dayDisplay && <span style={styles.slotName}>{dayDisplay.customer}</span>}
+                <Sun size={11} color={dayResult ? "#3B4520" : "#A6A28E"} />
+                {dayResult && <span style={styles.slotName}>{dayResult.booking.customer}</span>}
               </div>
               <div
                 className="fc-cellhalf"
-                onClick={() => (nightSpillover ? openModalByKey(nightSpillover.key) : openModal(d, "night"))}
-                style={{ ...styles.slotHalf, background: nightDisplay ? "#34345C" : "#E7E3D5" }}
-                title={nightSpillover ? `امتداد حجز حتى ${fmtTime12(nightSpillover.booking.endTime)}` : "فترة سهرة"}
+                onClick={() => (nightResult && !nightResult.isPrimary ? openModalByKey(nightResult.key) : openModal(d, "night"))}
+                style={{ ...styles.slotHalf, background: nightResult ? "#34345C" : "#E7E3D5" }}
+                title={nightResult && !nightResult.isPrimary ? `امتداد حجز حتى ${fmtDateShort(nightResult.booking.endDate)} ${fmtTime12(nightResult.booking.endTime)}` : "فترة سهرة"}
               >
-                <Moon size={11} color={nightDisplay ? "#DEDCEE" : "#A6A28E"} />
-                {nightDisplay && <span style={{ ...styles.slotName, color: "#EDECF6" }}>{nightDisplay.customer}</span>}
+                <Moon size={11} color={nightResult ? "#DEDCEE" : "#A6A28E"} />
+                {nightResult && <span style={{ ...styles.slotName, color: "#EDECF6" }}>{nightResult.booking.customer}</span>}
               </div>
             </div>
           );
@@ -367,11 +385,22 @@ export default function FarmCalendar() {
             <div style={styles.formGrid}>
               <div style={styles.twoCol}>
                 <div style={{ flex: 1 }}>
-                  <label style={styles.label}>من الساعة</label>
-                  <input className="fc-input fc-num" type="time" style={styles.input} value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} />
+                  <label style={styles.label}>تاريخ البداية</label>
+                  <input className="fc-input fc-num" type="date" style={styles.input} value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={styles.label}>إلى الساعة</label>
+                  <label style={styles.label}>ساعة البداية</label>
+                  <input className="fc-input fc-num" type="time" style={styles.input} value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} />
+                </div>
+              </div>
+
+              <div style={styles.twoCol}>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>تاريخ النهاية</label>
+                  <input className="fc-input fc-num" type="date" style={styles.input} value={form.endDate} min={form.startDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>ساعة النهاية</label>
                   <input className="fc-input fc-num" type="time" style={styles.input} value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} />
                 </div>
               </div>
