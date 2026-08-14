@@ -130,6 +130,8 @@ export default function FarmCalendar() {
   const farm = farms.find((f) => f.id === selectedFarmId) || farms[0];
   const farmBookings = bookings[selectedFarmId] || {};
   const farmPrices = { ...defaultPriceSet(), ...(prices[selectedFarmId] || {}) };
+  const financeMonthKey = `${year}-${pad(month + 1)}`;
+  const curFinances = finances[financeMonthKey] || { expenses: [], salaries: [] };
 
   const stats = useMemo(() => {
     let count = 0, revenue = 0, remaining = 0;
@@ -227,9 +229,6 @@ export default function FarmCalendar() {
     closeModal();
   }
   function changeMonth(delta) { setCurrent(new Date(year, month + delta, 1)); }
-
-  const financeMonthKey = `${year}-${pad(month + 1)}`;
-  const curFinances = finances[financeMonthKey] || { expenses: [], salaries: [] };
 
   function addFinanceItem(type, label, amount) {
     if (!label.trim() || !Number(amount)) return;
