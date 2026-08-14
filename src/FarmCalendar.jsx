@@ -18,10 +18,7 @@ const DEFAULT_TIMES = {
   night: { start: "22:00", end: "08:00" },
 };
 const REFERRAL_FEE = 5;
-const REFERRERS = [
-  { key: "referredByAli", label: "من طرف علي" },
-  { key: "referredByRayan", label: "من طرف ريان" },
-];
+const REFERRERS = ["راتب علي", "راتب ريان"];
 
 const STORAGE_KEY = "farm-calendar-state-v1";
 
@@ -84,7 +81,7 @@ function loadPersisted() {
   }
 }
 
-const emptyForm = { customer: "", phone: "", base: 0, discount: 0, discountReason: "", startDate: "", startTime: "", endDate: "", endTime: "", guestCount: "", extraGuestFee: 0, depositAmount: 0, depositMethod: "نقدي", remainingMethod: "نقدي", remainingSettled: false, referredByAli: false, referredByRayan: false, notes: "" };
+const emptyForm = { customer: "", phone: "", base: 0, discount: 0, discountReason: "", startDate: "", startTime: "", endDate: "", endTime: "", guestCount: "", extraGuestFee: 0, depositAmount: 0, depositMethod: "نقدي", remainingMethod: "نقدي", remainingSettled: false, notes: "" };
 const emptyFarmDraft = { name: "", location: "" };
 
 const initialDefaults = {
@@ -155,16 +152,7 @@ export default function FarmCalendar() {
   const totalExpenses = curFinances.expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
   const totalSalaries = curFinances.salaries.reduce((s, e) => s + Number(e.amount || 0), 0);
 
-  const referralCommissions = useMemo(() => {
-    const prefix = `${year}-${pad(month + 1)}-`;
-    return REFERRERS.map(({ key, label }) => {
-      let count = 0;
-      Object.entries(farmBookings).forEach(([k, b]) => {
-        if (k.startsWith(prefix) && b[key]) count += 1;
-      });
-      return { key, label, count, amount: count * REFERRAL_FEE };
-    });
-  }, [farmBookings, year, month]);
+  const referralCommissions = REFERRERS.map((label) => ({ label, count: stats.count, amount: stats.count * REFERRAL_FEE }));
   const totalCommissions = referralCommissions.reduce((s, r) => s + r.amount, 0);
 
   const netIncome = stats.revenue - totalExpenses - totalSalaries - totalCommissions;
@@ -222,7 +210,7 @@ export default function FarmCalendar() {
       ...prev,
       [selectedFarmId]: {
         ...prev[selectedFarmId],
-        [modal.key]: { ...form, base: Number(form.base) || 0, discount: Number(form.discount) || 0, guestCount: Number(form.guestCount) || 0, extraGuestFee: Number(form.extraGuestFee) || 0, depositAmount: Number(form.depositAmount) || 0, remainingSettled: !!form.remainingSettled, referredByAli: !!form.referredByAli, referredByRayan: !!form.referredByRayan },
+        [modal.key]: { ...form, base: Number(form.base) || 0, discount: Number(form.discount) || 0, guestCount: Number(form.guestCount) || 0, extraGuestFee: Number(form.extraGuestFee) || 0, depositAmount: Number(form.depositAmount) || 0, remainingSettled: !!form.remainingSettled },
       },
     }));
     closeModal();
@@ -487,16 +475,6 @@ export default function FarmCalendar() {
               <label style={styles.label}><Phone size={13} /> رقم الهاتف</label>
               <input className="fc-input" style={styles.input} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="07XXXXXXXX" />
 
-              <label style={styles.label}>مصدر الحجز</label>
-              <div style={styles.twoCol}>
-                {REFERRERS.map(({ key, label }) => (
-                  <label key={key} className="fc-btn" style={{ ...styles.checkboxRow, flex: 1, justifyContent: "center", marginTop: 0 }}>
-                    <input type="checkbox" checked={!!form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.checked })} />
-                    {label}
-                  </label>
-                ))}
-              </div>
-
               <div style={styles.twoCol}>
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>السعر الأساسي (د.أ)</label>
@@ -725,11 +703,11 @@ export default function FarmCalendar() {
               </div>
 
               <div style={styles.priceGroupBlock}>
-                <div style={styles.priceGroupLabel}>عمولات الإحالة ({fmtMoney(REFERRAL_FEE)} لكل حجز)</div>
+                <div style={styles.priceGroupLabel}>رواتب علي وريان ({fmtMoney(REFERRAL_FEE)} لكل حجز لكل واحد)</div>
                 {referralCommissions.map((r) => (
-                  <div key={r.key} style={styles.breakdownRow}><span>{r.label} ({r.count} حجز)</span><span className="fc-num">{fmtMoney(r.amount)}</span></div>
+                  <div key={r.label} style={styles.breakdownRow}><span>{r.label} ({r.count} حجز)</span><span className="fc-num">{fmtMoney(r.amount)}</span></div>
                 ))}
-                <div style={{ ...styles.breakdownRow, ...styles.breakdownTotal }}><span>مجموع العمولات</span><span className="fc-num">{fmtMoney(totalCommissions)}</span></div>
+                <div style={{ ...styles.breakdownRow, ...styles.breakdownTotal }}><span>المجموع</span><span className="fc-num">{fmtMoney(totalCommissions)}</span></div>
               </div>
 
               <div style={styles.finalRow}>
