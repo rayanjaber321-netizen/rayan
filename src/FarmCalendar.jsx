@@ -81,7 +81,7 @@ function loadPersisted() {
   }
 }
 
-const emptyForm = { customer: "", phone: "", base: 0, discount: 0, discountReason: "", startDate: "", startTime: "", endDate: "", endTime: "", guestCount: "", extraGuestFee: 0, depositAmount: 0, depositMethod: "نقدي", remainingMethod: "نقدي", remainingSettled: false, notes: "" };
+const emptyForm = { customer: "", phone: "", base: 0, discount: 0, discountReason: "", startDate: "", startTime: "", endDate: "", endTime: "", guestCount: "", extraGuestFee: 0, depositAmount: 0, depositMethod: "نقدي", remainingMethod: "نقدي", remainingSettled: false, excludeCommission: false, notes: "" };
 const emptyFarmDraft = { name: "", location: "" };
 
 const initialDefaults = {
@@ -152,7 +152,15 @@ export default function FarmCalendar() {
   const totalExpenses = curFinances.expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
   const totalSalaries = curFinances.salaries.reduce((s, e) => s + Number(e.amount || 0), 0);
 
-  const referralCommissions = REFERRERS.map((label) => ({ label, count: stats.count, amount: stats.count * REFERRAL_FEE }));
+  const commissionEligibleCount = useMemo(() => {
+    const prefix = `${year}-${pad(month + 1)}-`;
+    let count = 0;
+    Object.entries(farmBookings).forEach(([k, b]) => {
+      if (k.startsWith(prefix) && !b.excludeCommission) count += 1;
+    });
+    return count;
+  }, [farmBookings, year, month]);
+  const referralCommissions = REFERRERS.map((label) => ({ label, count: commissionEligibleCount, amount: commissionEligibleCount * REFERRAL_FEE }));
   const totalCommissions = referralCommissions.reduce((s, r) => s + r.amount, 0);
 
   const netIncome = stats.revenue - totalExpenses - totalSalaries - totalCommissions;
@@ -210,7 +218,7 @@ export default function FarmCalendar() {
       ...prev,
       [selectedFarmId]: {
         ...prev[selectedFarmId],
-        [modal.key]: { ...form, base: Number(form.base) || 0, discount: Number(form.discount) || 0, guestCount: Number(form.guestCount) || 0, extraGuestFee: Number(form.extraGuestFee) || 0, depositAmount: Number(form.depositAmount) || 0, remainingSettled: !!form.remainingSettled },
+        [modal.key]: { ...form, base: Number(form.base) || 0, discount: Number(form.discount) || 0, guestCount: Number(form.guestCount) || 0, extraGuestFee: Number(form.extraGuestFee) || 0, depositAmount: Number(form.depositAmount) || 0, remainingSettled: !!form.remainingSettled, excludeCommission: !!form.excludeCommission },
       },
     }));
     closeModal();
@@ -474,6 +482,11 @@ export default function FarmCalendar() {
 
               <label style={styles.label}><Phone size={13} /> رقم الهاتف</label>
               <input className="fc-input" style={styles.input} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="07XXXXXXXX" />
+
+              <label className="fc-btn" style={styles.checkboxRow}>
+                <input type="checkbox" checked={!!form.excludeCommission} onChange={(e) => setForm({ ...form, excludeCommission: e.target.checked })} />
+                حجز خاص (بدون عمولة علي وريان) — مثلاً لأصحاب المزرعة
+              </label>
 
               <div style={styles.twoCol}>
                 <div style={{ flex: 1 }}>
