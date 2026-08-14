@@ -131,7 +131,8 @@ export default function FarmCalendar() {
   const farmBookings = bookings[selectedFarmId] || {};
   const farmPrices = { ...defaultPriceSet(), ...(prices[selectedFarmId] || {}) };
   const financeMonthKey = `${year}-${pad(month + 1)}`;
-  const curFinances = finances[financeMonthKey] || { expenses: [], salaries: [] };
+  const farmFinances = finances[selectedFarmId] || {};
+  const curFinances = farmFinances[financeMonthKey] || { expenses: [], salaries: [] };
 
   const stats = useMemo(() => {
     let count = 0, revenue = 0, remaining = 0;
@@ -146,21 +147,9 @@ export default function FarmCalendar() {
     return { count, revenue, remaining };
   }, [farmBookings, year, month]);
 
-  const farmRevenue = useMemo(() => {
-    const prefix = `${year}-${pad(month + 1)}-`;
-    return farms.map((f) => {
-      const b = bookings[f.id] || {};
-      let revenue = 0;
-      Object.entries(b).forEach(([k, bk]) => {
-        if (k.startsWith(prefix)) revenue += bookingFinal(bk);
-      });
-      return { farm: f, revenue };
-    });
-  }, [farms, bookings, year, month]);
-  const totalRevenue = farmRevenue.reduce((s, r) => s + r.revenue, 0);
   const totalExpenses = curFinances.expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
   const totalSalaries = curFinances.salaries.reduce((s, e) => s + Number(e.amount || 0), 0);
-  const netIncome = totalRevenue - totalExpenses - totalSalaries;
+  const netIncome = stats.revenue - totalExpenses - totalSalaries;
 
   function priceFor(day, slot) {
     const weekday = new Date(year, month, day).getDay();
@@ -233,14 +222,16 @@ export default function FarmCalendar() {
   function addFinanceItem(type, label, amount) {
     if (!label.trim() || !Number(amount)) return;
     setFinances((prev) => {
-      const cur = prev[financeMonthKey] || { expenses: [], salaries: [] };
-      return { ...prev, [financeMonthKey]: { ...cur, [type]: [...cur[type], { id: `${type[0]}${Date.now()}`, label, amount: Number(amount) }] } };
+      const farmFin = prev[selectedFarmId] || {};
+      const cur = farmFin[financeMonthKey] || { expenses: [], salaries: [] };
+      return { ...prev, [selectedFarmId]: { ...farmFin, [financeMonthKey]: { ...cur, [type]: [...cur[type], { id: `${type[0]}${Date.now()}`, label, amount: Number(amount) }] } } };
     });
   }
   function removeFinanceItem(type, id) {
     setFinances((prev) => {
-      const cur = prev[financeMonthKey] || { expenses: [], salaries: [] };
-      return { ...prev, [financeMonthKey]: { ...cur, [type]: cur[type].filter((it) => it.id !== id) } };
+      const farmFin = prev[selectedFarmId] || {};
+      const cur = farmFin[financeMonthKey] || { expenses: [], salaries: [] };
+      return { ...prev, [selectedFarmId]: { ...farmFin, [financeMonthKey]: { ...cur, [type]: cur[type].filter((it) => it.id !== id) } } };
     });
   }
 
@@ -651,7 +642,7 @@ export default function FarmCalendar() {
         <div style={styles.overlay} onClick={() => setFinanceOpen(false)}>
           <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div style={styles.modalHeader}>
-              <div style={styles.modalTitle}>الحسابات</div>
+              <div style={styles.modalTitle}>الحسابات — {farm?.name}</div>
               <button className="fc-btn" onClick={() => setFinanceOpen(false)} style={styles.iconBtn} aria-label="إغلاق"><X size={18} color="#6B6355" /></button>
             </div>
 
@@ -663,11 +654,8 @@ export default function FarmCalendar() {
 
             <div style={styles.formGrid}>
               <div style={styles.priceGroupBlock}>
-                <div style={styles.priceGroupLabel}>دخل المزارع</div>
-                {farmRevenue.map(({ farm: f, revenue }) => (
-                  <div key={f.id} style={styles.breakdownRow}><span>{f.name}</span><span className="fc-num">{fmtMoney(revenue)}</span></div>
-                ))}
-                <div style={{ ...styles.breakdownRow, ...styles.breakdownTotal }}><span>مجموع الإيرادات</span><span className="fc-num">{fmtMoney(totalRevenue)}</span></div>
+                <div style={styles.priceGroupLabel}>دخل المزرعة</div>
+                <div style={{ ...styles.breakdownRow, ...styles.breakdownTotal }}><span>الإيرادات</span><span className="fc-num">{fmtMoney(stats.revenue)}</span></div>
               </div>
 
               <div style={styles.priceGroupBlock}>
