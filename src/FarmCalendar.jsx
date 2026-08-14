@@ -49,7 +49,7 @@ function groupForWeekday(weekday) {
   return "A";
 }
 function defaultPriceSet() {
-  return { day: { A: 100, B: 130, C: 160 }, night: { A: 150, B: 180, C: 220 } };
+  return { day: { A: 100, B: 130, C: 160 }, night: { A: 150, B: 180, C: 220 }, guestLimit: 15, guestFee: 5 };
 }
 function buildMonthGrid(year, month) {
   const firstDay = new Date(year, month, 1);
@@ -72,7 +72,7 @@ function loadPersisted() {
   }
 }
 
-const emptyForm = { customer: "", phone: "", base: 0, discount: 0, discountReason: "", startDate: "", startTime: "", endDate: "", endTime: "", depositAmount: 0, depositMethod: "نقدي", remainingMethod: "نقدي", notes: "" };
+const emptyForm = { customer: "", phone: "", base: 0, discount: 0, discountReason: "", startDate: "", startTime: "", endDate: "", endTime: "", guestCount: "", extraGuestFee: 0, depositAmount: 0, depositMethod: "نقدي", remainingMethod: "نقدي", notes: "" };
 const emptyFarmDraft = { name: "", location: "" };
 
 const initialDefaults = {
@@ -98,7 +98,7 @@ export default function FarmCalendar() {
   const [farmDraft, setFarmDraft] = useState(emptyFarmDraft);
   const [editingFarmId, setEditingFarmId] = useState(null);
   const [pricingFarmId, setPricingFarmId] = useState(persisted?.selectedFarmId || initialDefaults.selectedFarmId);
-  const [draftPrices, setDraftPrices] = useState((persisted?.prices || initialDefaults.prices)[persisted?.selectedFarmId || initialDefaults.selectedFarmId] || defaultPriceSet());
+  const [draftPrices, setDraftPrices] = useState({ ...defaultPriceSet(), ...((persisted?.prices || initialDefaults.prices)[persisted?.selectedFarmId || initialDefaults.selectedFarmId] || {}) });
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const touchStartY = useRef(null);
@@ -116,7 +116,7 @@ export default function FarmCalendar() {
   const cells = useMemo(() => buildMonthGrid(year, month), [year, month]);
   const farm = farms.find((f) => f.id === selectedFarmId) || farms[0];
   const farmBookings = bookings[selectedFarmId] || {};
-  const farmPrices = prices[selectedFarmId] || defaultPriceSet();
+  const farmPrices = { ...defaultPriceSet(), ...(prices[selectedFarmId] || {}) };
 
   const stats = useMemo(() => {
     let count = 0, revenue = 0, remaining = 0;
@@ -124,7 +124,7 @@ export default function FarmCalendar() {
     Object.entries(farmBookings).forEach(([k, b]) => {
       if (!k.startsWith(prefix)) return;
       count += 1;
-      const final = Math.max(0, Number(b.base) - Number(b.discount || 0));
+      const final = Math.max(0, Number(b.base) + Number(b.extraGuestFee || 0) - Number(b.discount || 0));
       revenue += final;
       remaining += Math.max(0, final - Number(b.depositAmount || 0));
     });
@@ -184,7 +184,7 @@ export default function FarmCalendar() {
       ...prev,
       [selectedFarmId]: {
         ...prev[selectedFarmId],
-        [modal.key]: { ...form, base: Number(form.base) || 0, discount: Number(form.discount) || 0, depositAmount: Number(form.depositAmount) || 0 },
+        [modal.key]: { ...form, base: Number(form.base) || 0, discount: Number(form.discount) || 0, guestCount: Number(form.guestCount) || 0, extraGuestFee: Number(form.extraGuestFee) || 0, depositAmount: Number(form.depositAmount) || 0 },
       },
     }));
     closeModal();
@@ -226,7 +226,7 @@ export default function FarmCalendar() {
   function openPricingTab(farmId) {
     setSettingsTab("pricing");
     setPricingFarmId(farmId);
-    setDraftPrices(prices[farmId] || defaultPriceSet());
+    setDraftPrices({ ...defaultPriceSet(), ...(prices[farmId] || {}) });
     setSettingsOpen(true);
   }
 
@@ -255,7 +255,7 @@ export default function FarmCalendar() {
     setSettingsOpen(false);
   }
 
-  const final = Math.max(0, Number(form.base || 0) - Number(form.discount || 0));
+  const final = Math.max(0, Number(form.base || 0) + Number(form.extraGuestFee || 0) - Number(form.discount || 0));
   const remainingAmount = Math.max(0, final - Number(form.depositAmount || 0));
 
   let timeRangeLabel = "";
@@ -429,6 +429,25 @@ export default function FarmCalendar() {
                 </>
               )}
 
+              <label style={styles.label}><User size={13} /> عدد الأشخاص</label>
+              <input
+                className="fc-input fc-num"
+                type="number"
+                style={styles.input}
+                value={form.guestCount}
+                onChange={(e) => {
+                  const guestCount = e.target.value;
+                  const extra = Math.max(0, Number(guestCount || 0) - farmPrices.guestLimit) * farmPrices.guestFee;
+                  setForm({ ...form, guestCount, extraGuestFee: extra });
+                }}
+                placeholder={`حتى ${farmPrices.guestLimit} بدون رسوم إضافية`}
+              />
+              {Number(form.extraGuestFee) > 0 && (
+                <div style={{ ...styles.modalSub, marginBottom: 0 }}>
+                  + {fmtMoney(Number(form.extraGuestFee))} رسوم {Math.max(0, Number(form.guestCount || 0) - farmPrices.guestLimit)} أشخاص إضافيين (فوق {farmPrices.guestLimit})
+                </div>
+              )}
+
               <div style={styles.finalRow}><span style={styles.label}>السعر النهائي</span><span className="fc-num" style={styles.finalPrice}>{fmtMoney(final)}</span></div>
 
               <label style={styles.label}>مبلغ العربون (د.أ)</label>
@@ -476,7 +495,7 @@ export default function FarmCalendar() {
 
             <div style={styles.tabRow}>
               <button className="fc-btn" onClick={() => setSettingsTab("farms")} style={{ ...styles.tabBtn, ...(settingsTab === "farms" ? styles.tabBtnActive : {}) }}>المزارع</button>
-              <button className="fc-btn" onClick={() => { setSettingsTab("pricing"); setPricingFarmId(selectedFarmId); setDraftPrices(prices[selectedFarmId] || defaultPriceSet()); }} style={{ ...styles.tabBtn, ...(settingsTab === "pricing" ? styles.tabBtnActive : {}) }}>الأسعار</button>
+              <button className="fc-btn" onClick={() => { setSettingsTab("pricing"); setPricingFarmId(selectedFarmId); setDraftPrices({ ...defaultPriceSet(), ...(prices[selectedFarmId] || {}) }); }} style={{ ...styles.tabBtn, ...(settingsTab === "pricing" ? styles.tabBtnActive : {}) }}>الأسعار</button>
             </div>
 
             {settingsTab === "farms" && (
@@ -502,7 +521,7 @@ export default function FarmCalendar() {
             {settingsTab === "pricing" && (
               <div style={styles.formGrid}>
                 <label style={styles.label}>المزرعة</label>
-                <select className="fc-select" style={styles.input} value={pricingFarmId} onChange={(e) => { setPricingFarmId(e.target.value); setDraftPrices(prices[e.target.value] || defaultPriceSet()); }}>
+                <select className="fc-select" style={styles.input} value={pricingFarmId} onChange={(e) => { setPricingFarmId(e.target.value); setDraftPrices({ ...defaultPriceSet(), ...(prices[e.target.value] || {}) }); }}>
                   {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
                 {PRICE_GROUPS.map((g) => (
@@ -520,6 +539,21 @@ export default function FarmCalendar() {
                     </div>
                   </div>
                 ))}
+
+                <div style={styles.priceGroupBlock}>
+                  <div style={styles.priceGroupLabel}>رسوم الأشخاص الإضافيين</div>
+                  <div style={styles.twoCol}>
+                    <div style={{ flex: 1 }}>
+                      <label style={styles.label}><User size={12} /> الحد بدون رسوم</label>
+                      <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.guestLimit} onChange={(e) => setDraftPrices({ ...draftPrices, guestLimit: e.target.value })} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={styles.label}>رسوم كل شخص إضافي (د.أ)</label>
+                      <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.guestFee} onChange={(e) => setDraftPrices({ ...draftPrices, guestFee: e.target.value })} />
+                    </div>
+                  </div>
+                </div>
+
                 <button className="fc-btn" onClick={savePricing} style={{ ...styles.saveBtn, marginTop: 6, marginRight: 0 }}>حفظ الأسعار</button>
               </div>
             )}
