@@ -385,9 +385,9 @@ export default function FarmCalendar() {
       [farmId]: (prev[farmId] || []).map((p) => ({ ...p, isCover: p.id === photoId })),
     }));
     const { error: clearErr } = await supabase.from("farm_photos").update({ is_cover: false }).eq("farm_id", farmId);
-    if (clearErr) { console.error(clearErr); return; }
+    if (clearErr) { console.error(clearErr); alert("صار خطأ بتعيين صورة الغلاف: " + clearErr.message); return; }
     const { error: setErr } = await supabase.from("farm_photos").update({ is_cover: true }).eq("id", photoId);
-    if (setErr) console.error(setErr);
+    if (setErr) { console.error(setErr); alert("صار خطأ بتعيين صورة الغلاف: " + setErr.message); }
   }
 
   const final = Math.max(0, Number(form.base || 0) + Number(form.extraGuestFee || 0) - Number(form.discount || 0));
