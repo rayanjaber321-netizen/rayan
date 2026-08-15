@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ChevronRight, ChevronLeft, MapPin, Sun, Moon, ArrowRight, X, MessageCircle, Phone, Copy, Check, Landmark, Share2 } from "lucide-react";
+import { ChevronRight, ChevronLeft, MapPin, Sun, Moon, ArrowRight, X, MessageCircle, Phone, Copy, Check, Landmark, Share } from "lucide-react";
 
 const CONTACT_PHONE = "962788083859";
 const CLIQ_ALIAS = "A24JAB";
@@ -135,7 +135,7 @@ export default function PublicFarmDetail() {
       `}</style>
 
       <button onClick={shareFarm} style={styles.shareBtn} aria-label="مشاركة">
-        {shared ? <Check size={16} /> : <Share2 size={16} />}
+        {shared ? <Check size={16} /> : <Share size={16} />}
       </button>
 
       <div style={styles.wrap}>

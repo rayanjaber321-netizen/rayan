@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { MapPin, Share2, Check } from "lucide-react";
+import { MapPin, Share, Check } from "lucide-react";
 import { supabase } from "./supabaseClient.js";
 
 export default function PublicFarmList() {
@@ -56,7 +56,7 @@ export default function PublicFarmList() {
       </div>
 
       <button onClick={shareSite} style={styles.shareBtn} aria-label="مشاركة">
-        {shared ? <Check size={16} /> : <Share2 size={16} />}
+        {shared ? <Check size={16} /> : <Share size={16} />}
       </button>
 
       {farms === null && <div style={styles.loading}>جاري التحميل...</div>}
