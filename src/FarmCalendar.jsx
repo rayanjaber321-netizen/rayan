@@ -1,50 +1,20 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { Sun, Moon, X, Settings, ChevronRight, ChevronLeft, Banknote, CreditCard, Landmark, Trash2, User, Phone, StickyNote, Plus, MapPin, Pencil, RefreshCw, Wallet } from "lucide-react";
+import { Sun, Moon, X, Settings, ChevronRight, ChevronLeft, Banknote, CreditCard, Landmark, Trash2, User, Phone, StickyNote, Plus, MapPin, Pencil, RefreshCw, Wallet, LogOut } from "lucide-react";
+import { supabase } from "./supabaseClient.js";
+import {
+  ARABIC_MONTHS, WEEKDAYS, PRICE_GROUPS, DEFAULT_TIMES,
+  pad, dateKey, fmtMoney, fmtTime12, fmtDateShort, toDateTime, addDays,
+  groupForWeekday, defaultPriceSet, buildMonthGrid,
+} from "./shared.js";
 
-const ARABIC_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
-const WEEKDAYS = ["أحد","اثنين","ثلاثاء","أربعاء","خميس","جمعة","سبت"];
 const PAYMENT_METHODS = [
   { id: "نقدي", label: "نقدي", icon: Banknote },
   { id: "كليك", label: "كليك", icon: CreditCard },
   { id: "تحويل بنكي", label: "تحويل بنكي", icon: Landmark },
 ];
-const PRICE_GROUPS = [
-  { key: "A", label: "الأحد – الأربعاء" },
-  { key: "B", label: "الخميس والسبت" },
-  { key: "C", label: "الجمعة" },
-];
-const DEFAULT_TIMES = {
-  day: { start: "10:00", end: "21:00" },
-  night: { start: "22:00", end: "08:00" },
-};
 const REFERRAL_FEE = 5;
 const REFERRERS = ["راتب علي", "راتب ريان"];
 
-const STORAGE_KEY = "farm-calendar-state-v1";
-
-function pad(n) { return String(n).padStart(2, "0"); }
-function dateKey(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
-function fmtMoney(n) { return `${(Math.round(n * 100) / 100).toLocaleString("en-US")} د.أ`; }
-function fmtTime12(hhmm) {
-  const [h, m] = hhmm.split(":").map(Number);
-  const period = h < 12 ? "صباحًا" : "مساءً";
-  const h12 = h % 12 === 0 ? 12 : h % 12;
-  return `${h12}:${pad(m)} ${period}`;
-}
-function fmtDateShort(dateStr) {
-  const [, m, d] = dateStr.split("-").map(Number);
-  return `${d} ${ARABIC_MONTHS[m - 1]}`;
-}
-function toDateTime(dateStr, hhmm) {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const [h, mi] = hhmm.split(":").map(Number);
-  return new Date(y, m - 1, d, h, mi);
-}
-function addDays(dateStr, n) {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const dt = new Date(y, m - 1, d + n);
-  return dateKey(dt.getFullYear(), dt.getMonth(), dt.getDate());
-}
 function bookingFinal(b) {
   return Math.max(0, Number(b.base) + Number(b.extraGuestFee || 0) - Number(b.discount || 0));
 }
@@ -52,57 +22,63 @@ function isBookingSettled(b) {
   const remaining = Math.max(0, bookingFinal(b) - Number(b.depositAmount || 0));
   return remaining <= 0 || !!b.remainingSettled;
 }
-function groupForWeekday(weekday) {
-  if (weekday === 5) return "C";
-  if (weekday === 4 || weekday === 6) return "B";
-  return "A";
-}
-function defaultPriceSet() {
-  return { day: { A: 100, B: 130, C: 160 }, night: { A: 150, B: 180, C: 220 }, guestLimit: 15, guestFee: 5 };
-}
-function buildMonthGrid(year, month) {
-  const firstDay = new Date(year, month, 1);
-  const startOffset = firstDay.getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const cells = [];
-  for (let i = 0; i < startOffset; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-  while (cells.length % 7 !== 0) cells.push(null);
-  return cells;
-}
 
-function loadPersisted() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
+function priceRowToApp(row) {
+  return {
+    day: { A: row.day_a, B: row.day_b, C: row.day_c },
+    night: { A: row.night_a, B: row.night_b, C: row.night_c },
+    guestLimit: row.guest_limit,
+    guestFee: row.guest_fee,
+  };
+}
+function priceAppToRow(farmId, p) {
+  return {
+    farm_id: farmId,
+    day_a: Number(p.day.A) || 0, day_b: Number(p.day.B) || 0, day_c: Number(p.day.C) || 0,
+    night_a: Number(p.night.A) || 0, night_b: Number(p.night.B) || 0, night_c: Number(p.night.C) || 0,
+    guest_limit: Number(p.guestLimit) || 0, guest_fee: Number(p.guestFee) || 0,
+  };
+}
+function bookingRowToApp(row) {
+  return {
+    customer: row.customer || "", phone: row.phone || "",
+    base: row.base || 0, discount: row.discount || 0, discountReason: row.discount_reason || "",
+    startDate: row.start_date || "", startTime: row.start_time || "", endDate: row.end_date || "", endTime: row.end_time || "",
+    guestCount: row.guest_count || 0, extraGuestFee: row.extra_guest_fee || 0,
+    depositAmount: row.deposit_amount || 0, depositMethod: row.deposit_method || "نقدي",
+    remainingMethod: row.remaining_method || "نقدي", remainingSettled: !!row.remaining_settled,
+    excludeCommission: !!row.exclude_commission, notes: row.notes || "",
+  };
+}
+function bookingAppToRow(farmId, slotKey, b) {
+  return {
+    farm_id: farmId, slot_key: slotKey,
+    customer: b.customer, phone: b.phone,
+    base: Number(b.base) || 0, discount: Number(b.discount) || 0, discount_reason: b.discountReason || "",
+    start_date: b.startDate || null, start_time: b.startTime || null, end_date: b.endDate || null, end_time: b.endTime || null,
+    guest_count: Number(b.guestCount) || 0, extra_guest_fee: Number(b.extraGuestFee) || 0,
+    deposit_amount: Number(b.depositAmount) || 0, deposit_method: b.depositMethod,
+    remaining_method: b.remainingMethod, remaining_settled: !!b.remainingSettled,
+    exclude_commission: !!b.excludeCommission, notes: b.notes || "",
+  };
 }
 
 const emptyForm = { customer: "", phone: "", base: 0, discount: 0, discountReason: "", startDate: "", startTime: "", endDate: "", endTime: "", guestCount: "", extraGuestFee: 0, depositAmount: 0, depositMethod: "نقدي", remainingMethod: "نقدي", remainingSettled: false, excludeCommission: false, notes: "" };
 const emptyFarmDraft = { name: "", location: "" };
-
-const initialDefaults = {
-  farms: [{ id: "f1", name: "المزرعة الأولى", location: "" }],
-  selectedFarmId: "f1",
-  prices: { f1: defaultPriceSet() },
-  bookings: { f1: {} },
-  finances: {},
-};
 const emptyFinanceDraft = { label: "", amount: "" };
 
 export default function FarmCalendar() {
   const today = new Date();
-  const persisted = useMemo(loadPersisted, []);
 
+  const [loading, setLoading] = useState(true);
   const [current, setCurrent] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
-  const [farms, setFarms] = useState(persisted?.farms || initialDefaults.farms);
-  const [selectedFarmId, setSelectedFarmId] = useState(persisted?.selectedFarmId || initialDefaults.selectedFarmId);
-  const [prices, setPrices] = useState(persisted?.prices || initialDefaults.prices);
-  const [bookings, setBookings] = useState(persisted?.bookings || initialDefaults.bookings);
-  const [finances, setFinances] = useState(persisted?.finances || initialDefaults.finances);
+  const [farms, setFarms] = useState([]);
+  const [selectedFarmId, setSelectedFarmId] = useState(null);
+  const [prices, setPrices] = useState({});
+  const [bookings, setBookings] = useState({});
+  const [finances, setFinances] = useState({});
+  const [photos, setPhotos] = useState({});
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [financeOpen, setFinanceOpen] = useState(false);
   const [expenseDraft, setExpenseDraft] = useState(emptyFinanceDraft);
   const [salaryDraft, setSalaryDraft] = useState(emptyFinanceDraft);
@@ -112,19 +88,60 @@ export default function FarmCalendar() {
   const [settingsTab, setSettingsTab] = useState("farms");
   const [farmDraft, setFarmDraft] = useState(emptyFarmDraft);
   const [editingFarmId, setEditingFarmId] = useState(null);
-  const [pricingFarmId, setPricingFarmId] = useState(persisted?.selectedFarmId || initialDefaults.selectedFarmId);
-  const [draftPrices, setDraftPrices] = useState({ ...defaultPriceSet(), ...((persisted?.prices || initialDefaults.prices)[persisted?.selectedFarmId || initialDefaults.selectedFarmId] || {}) });
+  const [pricingFarmId, setPricingFarmId] = useState(null);
+  const [draftPrices, setDraftPrices] = useState(defaultPriceSet());
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const touchStartY = useRef(null);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ farms, selectedFarmId, prices, bookings, finances }));
-    } catch {
-      // storage unavailable (private mode / quota) — state stays in memory only
+    let cancelled = false;
+    async function load() {
+      const [farmsRes, pricesRes, bookingsRes, financeRes, photosRes] = await Promise.all([
+        supabase.from("farms").select("*").order("created_at"),
+        supabase.from("farm_prices").select("*"),
+        supabase.from("bookings").select("*"),
+        supabase.from("finance_items").select("*"),
+        supabase.from("farm_photos").select("*").order("created_at"),
+      ]);
+      if (cancelled) return;
+
+      const loadedFarms = farmsRes.data || [];
+      const pricesById = {};
+      (pricesRes.data || []).forEach((row) => { pricesById[row.farm_id] = priceRowToApp(row); });
+      const bookingsById = {};
+      (bookingsRes.data || []).forEach((row) => {
+        bookingsById[row.farm_id] = bookingsById[row.farm_id] || {};
+        bookingsById[row.farm_id][row.slot_key] = bookingRowToApp(row);
+      });
+      const financesById = {};
+      (financeRes.data || []).forEach((row) => {
+        financesById[row.farm_id] = financesById[row.farm_id] || {};
+        financesById[row.farm_id][row.month_key] = financesById[row.farm_id][row.month_key] || { expenses: [], salaries: [] };
+        const list = row.item_type === "expense" ? "expenses" : "salaries";
+        financesById[row.farm_id][row.month_key][list].push({ id: row.id, label: row.label, amount: Number(row.amount) });
+      });
+      const photosById = {};
+      (photosRes.data || []).forEach((row) => {
+        photosById[row.farm_id] = photosById[row.farm_id] || [];
+        photosById[row.farm_id].push({ id: row.id, url: row.url });
+      });
+
+      setFarms(loadedFarms);
+      setPrices(pricesById);
+      setBookings(bookingsById);
+      setFinances(financesById);
+      setPhotos(photosById);
+      if (loadedFarms.length) {
+        setSelectedFarmId(loadedFarms[0].id);
+        setPricingFarmId(loadedFarms[0].id);
+        setDraftPrices(pricesById[loadedFarms[0].id] || defaultPriceSet());
+      }
+      setLoading(false);
     }
-  }, [farms, selectedFarmId, prices, bookings, finances]);
+    load();
+    return () => { cancelled = true; };
+  }, []);
 
   const year = current.getFullYear();
   const month = current.getMonth();
@@ -212,41 +229,60 @@ export default function FarmCalendar() {
   }
   function closeModal() { setModal(null); setForm(emptyForm); }
 
-  function saveBooking() {
+  async function saveBooking() {
     if (!form.customer.trim()) return;
+    const key = modal.key;
+    const farmId = selectedFarmId;
+    const clean = { ...form, base: Number(form.base) || 0, discount: Number(form.discount) || 0, guestCount: Number(form.guestCount) || 0, extraGuestFee: Number(form.extraGuestFee) || 0, depositAmount: Number(form.depositAmount) || 0, remainingSettled: !!form.remainingSettled, excludeCommission: !!form.excludeCommission };
     setBookings((prev) => ({
       ...prev,
-      [selectedFarmId]: {
-        ...prev[selectedFarmId],
-        [modal.key]: { ...form, base: Number(form.base) || 0, discount: Number(form.discount) || 0, guestCount: Number(form.guestCount) || 0, extraGuestFee: Number(form.extraGuestFee) || 0, depositAmount: Number(form.depositAmount) || 0, remainingSettled: !!form.remainingSettled, excludeCommission: !!form.excludeCommission },
-      },
+      [farmId]: { ...prev[farmId], [key]: clean },
     }));
     closeModal();
+    const { error } = await supabase.from("bookings").upsert(bookingAppToRow(farmId, key, clean), { onConflict: "farm_id,slot_key" });
+    if (error) { console.error(error); alert("صار خطأ بحفظ الحجز، تأكد من الاتصال بالإنترنت وحاول مرة ثانية"); }
   }
-  function deleteBooking() {
+  async function deleteBooking() {
+    const key = modal.key;
+    const farmId = selectedFarmId;
     setBookings((prev) => {
-      const copy = { ...prev[selectedFarmId] };
-      delete copy[modal.key];
-      return { ...prev, [selectedFarmId]: copy };
+      const copy = { ...prev[farmId] };
+      delete copy[key];
+      return { ...prev, [farmId]: copy };
     });
     closeModal();
+    const { error } = await supabase.from("bookings").delete().eq("farm_id", farmId).eq("slot_key", key);
+    if (error) console.error(error);
   }
   function changeMonth(delta) { setCurrent(new Date(year, month + delta, 1)); }
 
-  function addFinanceItem(type, label, amount) {
+  async function addFinanceItem(type, label, amount) {
     if (!label.trim() || !Number(amount)) return;
+    const farmId = selectedFarmId;
+    const mk = financeMonthKey;
+    const itemType = type === "expenses" ? "expense" : "salary";
+    const { data, error } = await supabase
+      .from("finance_items")
+      .insert({ farm_id: farmId, month_key: mk, item_type: itemType, label, amount: Number(amount) })
+      .select()
+      .single();
+    if (error) { console.error(error); alert("صار خطأ بالإضافة، حاول مرة ثانية"); return; }
     setFinances((prev) => {
-      const farmFin = prev[selectedFarmId] || {};
-      const cur = farmFin[financeMonthKey] || { expenses: [], salaries: [] };
-      return { ...prev, [selectedFarmId]: { ...farmFin, [financeMonthKey]: { ...cur, [type]: [...cur[type], { id: `${type[0]}${Date.now()}`, label, amount: Number(amount) }] } } };
+      const farmFin = prev[farmId] || {};
+      const cur = farmFin[mk] || { expenses: [], salaries: [] };
+      return { ...prev, [farmId]: { ...farmFin, [mk]: { ...cur, [type]: [...cur[type], { id: data.id, label, amount: Number(amount) }] } } };
     });
   }
-  function removeFinanceItem(type, id) {
+  async function removeFinanceItem(type, id) {
+    const farmId = selectedFarmId;
+    const mk = financeMonthKey;
     setFinances((prev) => {
-      const farmFin = prev[selectedFarmId] || {};
-      const cur = farmFin[financeMonthKey] || { expenses: [], salaries: [] };
-      return { ...prev, [selectedFarmId]: { ...farmFin, [financeMonthKey]: { ...cur, [type]: cur[type].filter((it) => it.id !== id) } } };
+      const farmFin = prev[farmId] || {};
+      const cur = farmFin[mk] || { expenses: [], salaries: [] };
+      return { ...prev, [farmId]: { ...farmFin, [mk]: { ...cur, [type]: cur[type].filter((it) => it.id !== id) } } };
     });
+    const { error } = await supabase.from("finance_items").delete().eq("id", id);
+    if (error) console.error(error);
   }
 
   const PULL_THRESHOLD = 60;
@@ -280,29 +316,68 @@ export default function FarmCalendar() {
     setSettingsOpen(true);
   }
 
-  function addOrUpdateFarm() {
+  async function addOrUpdateFarm() {
     if (!farmDraft.name.trim()) return;
     if (editingFarmId) {
-      setFarms((prev) => prev.map((f) => (f.id === editingFarmId ? { ...f, ...farmDraft } : f)));
+      const id = editingFarmId;
+      setFarms((prev) => prev.map((f) => (f.id === id ? { ...f, ...farmDraft } : f)));
+      setFarmDraft(emptyFarmDraft);
+      setEditingFarmId(null);
+      const { error } = await supabase.from("farms").update({ name: farmDraft.name, location: farmDraft.location }).eq("id", id);
+      if (error) { console.error(error); alert("صار خطأ بتعديل المزرعة"); }
     } else {
       const id = "f" + Date.now();
-      setFarms((prev) => [...prev, { id, name: farmDraft.name, location: farmDraft.location }]);
+      const newFarm = { id, name: farmDraft.name, location: farmDraft.location };
+      setFarms((prev) => [...prev, newFarm]);
       setPrices((prev) => ({ ...prev, [id]: defaultPriceSet() }));
       setBookings((prev) => ({ ...prev, [id]: {} }));
       setSelectedFarmId(id);
+      setFarmDraft(emptyFarmDraft);
+      setEditingFarmId(null);
+      const { error: farmErr } = await supabase.from("farms").insert(newFarm);
+      if (farmErr) { console.error(farmErr); alert("صار خطأ بإضافة المزرعة"); return; }
+      const { error: priceErr } = await supabase.from("farm_prices").insert(priceAppToRow(id, defaultPriceSet()));
+      if (priceErr) console.error(priceErr);
     }
-    setFarmDraft(emptyFarmDraft);
-    setEditingFarmId(null);
   }
   function startEditFarm(f) { setEditingFarmId(f.id); setFarmDraft({ name: f.name, location: f.location }); }
-  function deleteFarm(id) {
+  async function deleteFarm(id) {
     if (farms.length === 1) return;
-    setFarms((prev) => prev.filter((f) => f.id !== id));
-    if (selectedFarmId === id) setSelectedFarmId(farms.find((f) => f.id !== id).id);
+    const nextFarms = farms.filter((f) => f.id !== id);
+    setFarms(nextFarms);
+    if (selectedFarmId === id) setSelectedFarmId(nextFarms[0].id);
+    const { error } = await supabase.from("farms").delete().eq("id", id);
+    if (error) console.error(error);
   }
-  function savePricing() {
-    setPrices((prev) => ({ ...prev, [pricingFarmId]: draftPrices }));
+  async function savePricing() {
+    const clean = {
+      day: { A: Number(draftPrices.day.A) || 0, B: Number(draftPrices.day.B) || 0, C: Number(draftPrices.day.C) || 0 },
+      night: { A: Number(draftPrices.night.A) || 0, B: Number(draftPrices.night.B) || 0, C: Number(draftPrices.night.C) || 0 },
+      guestLimit: Number(draftPrices.guestLimit) || 0,
+      guestFee: Number(draftPrices.guestFee) || 0,
+    };
+    setPrices((prev) => ({ ...prev, [pricingFarmId]: clean }));
     setSettingsOpen(false);
+    const { error } = await supabase.from("farm_prices").upsert(priceAppToRow(pricingFarmId, clean), { onConflict: "farm_id" });
+    if (error) { console.error(error); alert("صار خطأ بحفظ الأسعار"); }
+  }
+
+  async function uploadPhoto(farmId, file) {
+    if (!file) return;
+    setUploadingPhoto(true);
+    const path = `${farmId}/${Date.now()}_${file.name}`;
+    const { error: upErr } = await supabase.storage.from("farm-photos").upload(path, file);
+    if (upErr) { console.error(upErr); alert("صار خطأ برفع الصورة"); setUploadingPhoto(false); return; }
+    const { data: urlData } = supabase.storage.from("farm-photos").getPublicUrl(path);
+    const { data, error } = await supabase.from("farm_photos").insert({ farm_id: farmId, url: urlData.publicUrl }).select().single();
+    setUploadingPhoto(false);
+    if (error) { console.error(error); alert("صار خطأ بحفظ الصورة"); return; }
+    setPhotos((prev) => ({ ...prev, [farmId]: [...(prev[farmId] || []), { id: data.id, url: data.url }] }));
+  }
+  async function deletePhoto(farmId, photoId) {
+    setPhotos((prev) => ({ ...prev, [farmId]: (prev[farmId] || []).filter((p) => p.id !== photoId) }));
+    const { error } = await supabase.from("farm_photos").delete().eq("id", photoId);
+    if (error) console.error(error);
   }
 
   const final = Math.max(0, Number(form.base || 0) + Number(form.extraGuestFee || 0) - Number(form.discount || 0));
@@ -313,6 +388,14 @@ export default function FarmCalendar() {
     timeRangeLabel = form.startDate === form.endDate
       ? `${fmtDateShort(form.startDate)} — ${fmtTime12(form.startTime)} ← ${fmtTime12(form.endTime)}`
       : `${fmtDateShort(form.startDate)} ${fmtTime12(form.startTime)} ← ${fmtDateShort(form.endDate)} ${fmtTime12(form.endTime)}`;
+  }
+
+  if (loading) {
+    return (
+      <div dir="rtl" style={{ ...styles.wrap, textAlign: "center", padding: "60px 20px", color: "#6B6355" }}>
+        جاري تحميل البيانات...
+      </div>
+    );
   }
 
   return (
@@ -592,6 +675,7 @@ export default function FarmCalendar() {
             <div style={styles.tabRow}>
               <button className="fc-btn" onClick={() => setSettingsTab("farms")} style={{ ...styles.tabBtn, ...(settingsTab === "farms" ? styles.tabBtnActive : {}) }}>المزارع</button>
               <button className="fc-btn" onClick={() => { setSettingsTab("pricing"); setPricingFarmId(selectedFarmId); setDraftPrices({ ...defaultPriceSet(), ...(prices[selectedFarmId] || {}) }); }} style={{ ...styles.tabBtn, ...(settingsTab === "pricing" ? styles.tabBtnActive : {}) }}>الأسعار</button>
+              <button className="fc-btn" onClick={() => { setSettingsTab("photos"); setPricingFarmId(selectedFarmId); }} style={{ ...styles.tabBtn, ...(settingsTab === "photos" ? styles.tabBtnActive : {}) }}>الصور</button>
             </div>
 
             {settingsTab === "farms" && (
@@ -611,6 +695,10 @@ export default function FarmCalendar() {
                 <input className="fc-input" style={styles.input} value={farmDraft.name} onChange={(e) => setFarmDraft({ ...farmDraft, name: e.target.value })} placeholder="اسم المزرعة" />
                 <input className="fc-input" style={styles.input} value={farmDraft.location} onChange={(e) => setFarmDraft({ ...farmDraft, location: e.target.value })} placeholder="اللوكيشن (مثلاً: جرش)" />
                 <button className="fc-btn" onClick={addOrUpdateFarm} style={{ ...styles.saveBtn, marginTop: 6, marginRight: 0 }}>{editingFarmId ? "حفظ التعديل" : "إضافة المزرعة"}</button>
+
+                <button className="fc-btn" onClick={() => supabase.auth.signOut()} style={{ ...styles.tabBtn, marginTop: 16, color: "#791F1F", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <LogOut size={13} /> تسجيل خروج
+                </button>
               </div>
             )}
 
@@ -651,6 +739,37 @@ export default function FarmCalendar() {
                 </div>
 
                 <button className="fc-btn" onClick={savePricing} style={{ ...styles.saveBtn, marginTop: 6, marginRight: 0 }}>حفظ الأسعار</button>
+              </div>
+            )}
+
+            {settingsTab === "photos" && (
+              <div style={styles.formGrid}>
+                <label style={styles.label}>المزرعة</label>
+                <select className="fc-select" style={styles.input} value={pricingFarmId} onChange={(e) => setPricingFarmId(e.target.value)}>
+                  {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+                </select>
+
+                <div style={styles.photoGrid}>
+                  {(photos[pricingFarmId] || []).map((p) => (
+                    <div key={p.id} style={styles.photoThumbWrap}>
+                      <img src={p.url} alt="" style={styles.photoThumb} />
+                      <button className="fc-btn" onClick={() => deletePhoto(pricingFarmId, p.id)} style={styles.photoDeleteBtn} aria-label="حذف">
+                        <X size={12} color="#FFFFFF" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <label className="fc-btn" style={{ ...styles.saveBtn, marginTop: 10, marginRight: 0, textAlign: "center", opacity: uploadingPhoto ? 0.6 : 1 }}>
+                  {uploadingPhoto ? "...جاري الرفع" : "رفع صورة"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={uploadingPhoto}
+                    onChange={(e) => { uploadPhoto(pricingFarmId, e.target.files[0]); e.target.value = ""; }}
+                    style={{ display: "none" }}
+                  />
+                </label>
               </div>
             )}
           </div>
@@ -802,4 +921,8 @@ const styles = {
   breakdownRow: { display: "flex", justifyContent: "space-between", fontSize: 12, color: "#4A453A", padding: "4px 0" },
   breakdownTotal: { borderTop: "1px solid #DAD3BE", marginTop: 4, paddingTop: 6, fontWeight: 500, color: "#BC6C25" },
   financeItemRight: { display: "flex", alignItems: "center", gap: 6 },
+  photoGrid: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 10 },
+  photoThumbWrap: { position: "relative", borderRadius: 8, overflow: "hidden", aspectRatio: "1 / 1" },
+  photoThumb: { width: "100%", height: "100%", objectFit: "cover", display: "block" },
+  photoDeleteBtn: { position: "absolute", top: 3, left: 3, background: "rgba(35,41,31,0.65)", borderRadius: "50%", width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center" },
 };

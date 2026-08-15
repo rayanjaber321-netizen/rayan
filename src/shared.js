@@ -1,0 +1,53 @@
+export const ARABIC_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+export const WEEKDAYS = ["أحد","اثنين","ثلاثاء","أربعاء","خميس","جمعة","سبت"];
+export const PRICE_GROUPS = [
+  { key: "A", label: "الأحد – الأربعاء" },
+  { key: "B", label: "الخميس والسبت" },
+  { key: "C", label: "الجمعة" },
+];
+export const DEFAULT_TIMES = {
+  day: { start: "10:00", end: "21:00" },
+  night: { start: "22:00", end: "08:00" },
+};
+
+export function pad(n) { return String(n).padStart(2, "0"); }
+export function dateKey(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
+export function fmtMoney(n) { return `${(Math.round(n * 100) / 100).toLocaleString("en-US")} د.أ`; }
+export function fmtTime12(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  const period = h < 12 ? "صباحًا" : "مساءً";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${pad(m)} ${period}`;
+}
+export function fmtDateShort(dateStr) {
+  const [, m, d] = dateStr.split("-").map(Number);
+  return `${d} ${ARABIC_MONTHS[m - 1]}`;
+}
+export function toDateTime(dateStr, hhmm) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const [h, mi] = hhmm.split(":").map(Number);
+  return new Date(y, m - 1, d, h, mi);
+}
+export function addDays(dateStr, n) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d + n);
+  return dateKey(dt.getFullYear(), dt.getMonth(), dt.getDate());
+}
+export function groupForWeekday(weekday) {
+  if (weekday === 5) return "C";
+  if (weekday === 4 || weekday === 6) return "B";
+  return "A";
+}
+export function defaultPriceSet() {
+  return { day: { A: 100, B: 130, C: 160 }, night: { A: 150, B: 180, C: 220 }, guestLimit: 15, guestFee: 5 };
+}
+export function buildMonthGrid(year, month) {
+  const firstDay = new Date(year, month, 1);
+  const startOffset = firstDay.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < startOffset; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}
