@@ -64,7 +64,7 @@ function bookingAppToRow(farmId, slotKey, b) {
 }
 
 const emptyForm = { customer: "", phone: "", base: 0, discount: 0, discountReason: "", startDate: "", startTime: "", endDate: "", endTime: "", guestCount: "", extraGuestFee: 0, depositAmount: 0, depositMethod: "نقدي", remainingMethod: "نقدي", remainingSettled: false, excludeCommission: false, notes: "" };
-const emptyFarmDraft = { name: "", location: "", maps_url: "" };
+const emptyFarmDraft = { name: "", location: "", maps_url: "", description: "" };
 const emptyFinanceDraft = { label: "", amount: "" };
 
 export default function FarmCalendar() {
@@ -323,11 +323,11 @@ export default function FarmCalendar() {
       setFarms((prev) => prev.map((f) => (f.id === id ? { ...f, ...farmDraft } : f)));
       setFarmDraft(emptyFarmDraft);
       setEditingFarmId(null);
-      const { error } = await supabase.from("farms").update({ name: farmDraft.name, location: farmDraft.location, maps_url: farmDraft.maps_url }).eq("id", id);
+      const { error } = await supabase.from("farms").update({ name: farmDraft.name, location: farmDraft.location, maps_url: farmDraft.maps_url, description: farmDraft.description }).eq("id", id);
       if (error) { console.error(error); alert("صار خطأ بتعديل المزرعة"); }
     } else {
       const id = "f" + Date.now();
-      const newFarm = { id, name: farmDraft.name, location: farmDraft.location, maps_url: farmDraft.maps_url };
+      const newFarm = { id, name: farmDraft.name, location: farmDraft.location, maps_url: farmDraft.maps_url, description: farmDraft.description };
       setFarms((prev) => [...prev, newFarm]);
       setPrices((prev) => ({ ...prev, [id]: defaultPriceSet() }));
       setBookings((prev) => ({ ...prev, [id]: {} }));
@@ -340,7 +340,7 @@ export default function FarmCalendar() {
       if (priceErr) console.error(priceErr);
     }
   }
-  function startEditFarm(f) { setEditingFarmId(f.id); setFarmDraft({ name: f.name, location: f.location, maps_url: f.maps_url || "" }); }
+  function startEditFarm(f) { setEditingFarmId(f.id); setFarmDraft({ name: f.name, location: f.location, maps_url: f.maps_url || "", description: f.description || "" }); }
   async function deleteFarm(id) {
     if (farms.length === 1) return;
     const nextFarms = farms.filter((f) => f.id !== id);
@@ -705,6 +705,7 @@ export default function FarmCalendar() {
                 <input className="fc-input" style={styles.input} value={farmDraft.name} onChange={(e) => setFarmDraft({ ...farmDraft, name: e.target.value })} placeholder="اسم المزرعة" />
                 <input className="fc-input" style={styles.input} value={farmDraft.location} onChange={(e) => setFarmDraft({ ...farmDraft, location: e.target.value })} placeholder="اللوكيشن (مثلاً: جرش)" />
                 <input className="fc-input" style={styles.input} value={farmDraft.maps_url} onChange={(e) => setFarmDraft({ ...farmDraft, maps_url: e.target.value })} placeholder="رابط الموقع (خرائط قوقل)" />
+                <textarea className="fc-input" style={{ ...styles.input, minHeight: 70, resize: "vertical", paddingTop: 8 }} value={farmDraft.description} onChange={(e) => setFarmDraft({ ...farmDraft, description: e.target.value })} placeholder="وصف المزرعة (يظهر للعميل)" />
                 <button className="fc-btn" onClick={addOrUpdateFarm} style={{ ...styles.saveBtn, marginTop: 6, marginRight: 0 }}>{editingFarmId ? "حفظ التعديل" : "إضافة المزرعة"}</button>
 
                 <button className="fc-btn" onClick={() => supabase.auth.signOut()} style={{ ...styles.tabBtn, marginTop: 16, color: "#791F1F", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>

@@ -49,6 +49,12 @@ export default function PublicFarmDetail() {
   const year = current.getFullYear();
   const month = current.getMonth();
   const cells = useMemo(() => buildMonthGrid(year, month), [year, month]);
+  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
+
+  function goPrevMonth() {
+    if (isCurrentMonth) return;
+    setCurrent(new Date(year, month - 1, 1));
+  }
 
   function isOccupied(dateStr, slot) {
     const defaults = DEFAULT_TIMES[slot];
@@ -113,6 +119,7 @@ export default function PublicFarmDetail() {
 
         <div style={styles.title}>{farm.name}</div>
         {farm.location && <div style={styles.location}><MapPin size={13} /> {farm.location}</div>}
+        {farm.description && <div style={styles.description}>{farm.description}</div>}
 
         <div style={styles.section}>
           <div style={styles.sectionTitle}>الأسعار</div>
@@ -154,11 +161,13 @@ export default function PublicFarmDetail() {
           <div style={styles.monthNav}>
             <button className="pf-nav" onClick={() => setCurrent(new Date(year, month + 1, 1))}><ChevronRight size={16} /></button>
             <div style={styles.monthLabel}>{ARABIC_MONTHS[month]} {year}</div>
-            <button className="pf-nav" onClick={() => setCurrent(new Date(year, month - 1, 1))}><ChevronLeft size={16} /></button>
+            <button className="pf-nav" onClick={goPrevMonth} disabled={isCurrentMonth} style={isCurrentMonth ? { opacity: 0.35, cursor: "default" } : undefined}>
+              <ChevronLeft size={16} />
+            </button>
           </div>
           <div style={styles.legend}>
-            <span style={styles.legendItem}><span style={{ ...styles.dot, background: "#C9D3A9" }} /> نهاري 10ص–9م</span>
-            <span style={styles.legendItem}><span style={{ ...styles.dot, background: "#34345C" }} /> سهرة 10م–8ص</span>
+            <div style={styles.legendItem}><Sun size={13} color="#7A6A2E" /> <b>نهاري</b>: من الساعة 10 صباحاً حتى 9 مساءً</div>
+            <div style={styles.legendItem}><Moon size={13} color="#34345C" /> <b>سهرة</b>: من الساعة 10 مساءً حتى 8 صباحاً</div>
           </div>
           <div style={styles.weekRow}>
             {WEEKDAYS.map((w) => <div key={w} style={styles.weekDay}>{w}</div>)}
@@ -224,6 +233,7 @@ const styles = {
   galleryPlaceholder: { height: 140, background: "#F1EEE3", border: "1px dashed #C9C0A8", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", color: "#6B6355", fontSize: 12, marginBottom: 14 },
   title: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 22 },
   location: { fontSize: 13, color: "#6B6355", display: "flex", alignItems: "center", gap: 5, marginTop: 4 },
+  description: { fontSize: 13, color: "#4A453A", lineHeight: 1.7, marginTop: 10, whiteSpace: "pre-wrap" },
   section: { background: "#F7F3E9", border: "1px solid #DAD3BE", borderRadius: 12, padding: 14, marginTop: 14 },
   sectionTitle: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 15, marginBottom: 8 },
   priceRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid #EFE9DA", fontSize: 12.5 },
@@ -237,9 +247,8 @@ const styles = {
   callBtn: { background: "#34345C", color: "#fff" },
   monthNav: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   monthLabel: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 14 },
-  legend: { display: "flex", gap: 14, marginBottom: 8 },
-  legendItem: { display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, color: "#6B6355" },
-  dot: { width: 8, height: 8, borderRadius: "50%", display: "inline-block" },
+  legend: { display: "flex", flexDirection: "column", gap: 5, marginBottom: 10 },
+  legendItem: { display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#4A453A" },
   weekRow: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 },
   weekDay: { textAlign: "center", fontSize: 10, color: "#6B6355", fontWeight: 500, paddingBottom: 4 },
   grid: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 },
