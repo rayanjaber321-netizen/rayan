@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ChevronRight, ChevronLeft, MapPin, Sun, Moon, ArrowRight } from "lucide-react";
+import { ChevronRight, ChevronLeft, MapPin, Sun, Moon, ArrowRight, X } from "lucide-react";
 import { supabase } from "./supabaseClient.js";
 import {
   ARABIC_MONTHS, WEEKDAYS, PRICE_GROUPS, DEFAULT_TIMES,
@@ -15,6 +15,8 @@ export default function PublicFarmDetail() {
   const [photos, setPhotos] = useState([]);
   const [prices, setPrices] = useState(defaultPriceSet());
   const [availability, setAvailability] = useState([]);
+  const [lightboxIndex, setLightboxIndex] = useState(null);
+  const touchStartX = React.useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,6 +67,17 @@ export default function PublicFarmDetail() {
     return prices[slot][group];
   }
 
+  function showNext() { setLightboxIndex((i) => (i + 1) % photos.length); }
+  function showPrev() { setLightboxIndex((i) => (i - 1 + photos.length) % photos.length); }
+  function handleLightboxTouchStart(e) { touchStartX.current = e.touches[0].clientX; }
+  function handleLightboxTouchEnd(e) {
+    if (touchStartX.current === null) return;
+    const delta = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (delta < -40) showNext();
+    else if (delta > 40) showPrev();
+  }
+
   if (farm === undefined) {
     return <div dir="rtl" style={{ ...styles.page, textAlign: "center", padding: 60, color: "#6B6355" }}>جاري التحميل...</div>;
   }
@@ -88,8 +101,8 @@ export default function PublicFarmDetail() {
 
         {photos.length > 0 ? (
           <div style={styles.gallery}>
-            {photos.map((p) => (
-              <img key={p.id} src={p.url} alt={farm.name} style={styles.galleryImg} />
+            {photos.map((p, idx) => (
+              <img key={p.id} src={p.url} alt={farm.name} style={styles.galleryImg} onClick={() => setLightboxIndex(idx)} />
             ))}
           </div>
         ) : (
@@ -153,6 +166,33 @@ export default function PublicFarmDetail() {
           </div>
         </div>
       </div>
+
+      {lightboxIndex !== null && photos[lightboxIndex] && (
+        <div style={styles.lightboxOverlay} onClick={() => setLightboxIndex(null)}>
+          <button className="pf-nav" style={styles.lightboxClose} onClick={(e) => { e.stopPropagation(); setLightboxIndex(null); }} aria-label="إغلاق">
+            <X size={18} color="#fff" />
+          </button>
+          <div style={styles.lightboxCounter}>{lightboxIndex + 1} / {photos.length}</div>
+          <div
+            style={styles.lightboxImgWrap}
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={handleLightboxTouchStart}
+            onTouchEnd={handleLightboxTouchEnd}
+          >
+            <img src={photos[lightboxIndex].url} alt={farm.name} style={styles.lightboxImg} />
+          </div>
+          {photos.length > 1 && (
+            <>
+              <button style={{ ...styles.lightboxNav, ...styles.lightboxNavRight }} onClick={(e) => { e.stopPropagation(); showNext(); }} aria-label="التالية">
+                <ChevronRight size={22} color="#fff" />
+              </button>
+              <button style={{ ...styles.lightboxNav, ...styles.lightboxNavLeft }} onClick={(e) => { e.stopPropagation(); showPrev(); }} aria-label="السابقة">
+                <ChevronLeft size={22} color="#fff" />
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -162,7 +202,7 @@ const styles = {
   wrap: { maxWidth: 480, margin: "0 auto" },
   backLink: { display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "#6B6355", textDecoration: "none", marginBottom: 12 },
   gallery: { display: "flex", gap: 8, overflowX: "auto", marginBottom: 14, borderRadius: 12 },
-  galleryImg: { height: 180, width: 260, objectFit: "cover", borderRadius: 12, flexShrink: 0 },
+  galleryImg: { height: 180, width: 260, objectFit: "cover", borderRadius: 12, flexShrink: 0, cursor: "pointer" },
   galleryPlaceholder: { height: 140, background: "#F1EEE3", border: "1px dashed #C9C0A8", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", color: "#6B6355", fontSize: 12, marginBottom: 14 },
   title: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 22 },
   location: { fontSize: 13, color: "#6B6355", display: "flex", alignItems: "center", gap: 5, marginTop: 4 },
@@ -185,4 +225,12 @@ const styles = {
   dayCell: { background: "#FFFFFF", borderRadius: 8, overflow: "hidden", border: "1px solid #DAD3BE", display: "flex", flexDirection: "column", minHeight: 54 },
   dayNum: { textAlign: "right", fontSize: 9, color: "#6B6355", padding: "2px 4px 0 4px" },
   slotHalf: { height: 20, display: "flex", alignItems: "center", justifyContent: "center" },
+  lightboxOverlay: { position: "fixed", inset: 0, background: "rgba(15,13,9,0.92)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" },
+  lightboxImgWrap: { maxWidth: "92vw", maxHeight: "82vh", display: "flex", alignItems: "center", justifyContent: "center" },
+  lightboxImg: { maxWidth: "92vw", maxHeight: "82vh", objectFit: "contain", borderRadius: 8, userSelect: "none" },
+  lightboxClose: { position: "fixed", top: 16, right: 16, border: "none", background: "rgba(255,255,255,0.15)", borderRadius: "50%", width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
+  lightboxCounter: { position: "fixed", top: 22, left: 16, color: "#fff", fontSize: 12.5, fontFamily: "'IBM Plex Mono', monospace", background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "5px 12px" },
+  lightboxNav: { position: "fixed", top: "50%", transform: "translateY(-50%)", border: "none", background: "rgba(255,255,255,0.15)", borderRadius: "50%", width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
+  lightboxNavRight: { right: 14 },
+  lightboxNavLeft: { left: 14 },
 };
