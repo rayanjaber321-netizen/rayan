@@ -111,6 +111,11 @@ export default function PublicFarmDetail() {
             </div>
           ))}
           <div style={styles.guestNote}>+{fmtMoney(prices.guestFee)} لكل شخص فوق {prices.guestLimit}</div>
+          {farm.maps_url && (
+            <a href={farm.maps_url} target="_blank" rel="noopener noreferrer" style={styles.mapsLink}>
+              <MapPin size={13} /> افتح الموقع على الخارطة
+            </a>
+          )}
         </div>
 
         <div style={styles.section}>
@@ -167,6 +172,7 @@ const styles = {
   priceLabel: { color: "#4A453A" },
   priceValues: { display: "flex", gap: 12, fontFamily: "'IBM Plex Mono', monospace" },
   guestNote: { fontSize: 11, color: "#6B6355", marginTop: 8 },
+  mapsLink: { display: "inline-flex", alignItems: "center", gap: 5, marginTop: 10, fontSize: 12.5, fontWeight: 700, color: "#BC6C25", textDecoration: "none" },
   monthNav: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   monthLabel: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 14 },
   legend: { display: "flex", gap: 14, marginBottom: 8 },

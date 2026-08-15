@@ -9,20 +9,10 @@ export default function PublicFarmList() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [farmsRes, photosRes] = await Promise.all([
-        supabase.from("farms").select("*").order("created_at"),
-        supabase.from("farm_photos").select("farm_id, url, is_cover"),
-      ]);
+      const { data, error } = await supabase.from("farms").select("*").order("created_at");
       if (cancelled) return;
-      if (farmsRes.error) console.error("farms load error:", farmsRes.error);
-      if (photosRes.error) console.error("photos load error:", photosRes.error);
-      const photosByFarm = {};
-      (photosRes.data || []).forEach((p) => {
-        photosByFarm[p.farm_id] = photosByFarm[p.farm_id] || [];
-        photosByFarm[p.farm_id].push(p);
-      });
-      const withPhotos = (farmsRes.data || []).map((f) => ({ ...f, photos: photosByFarm[f.id] || [] }));
-      setFarms(withPhotos);
+      if (error) console.error("farms load error:", error);
+      setFarms(data || []);
     }
     load();
     return () => { cancelled = true; };
@@ -33,31 +23,23 @@ export default function PublicFarmList() {
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;800&family=Tajawal:wght@400;500;700&display=swap');`}</style>
       <div style={styles.header}>
         <div style={styles.title}>مزارع للإيجار</div>
-        <div style={styles.subtitle}>اختر مزرعة لتشوف الصور، الأسعار، والأيام المتوفرة</div>
+        <div style={styles.subtitle}>اختر مزرعة لتشوف الأسعار والأيام المتوفرة</div>
       </div>
 
       {farms === null && <div style={styles.loading}>جاري التحميل...</div>}
       {farms !== null && farms.length === 0 && <div style={styles.loading}>لا يوجد مزارع حالياً</div>}
 
       <div style={styles.grid}>
-        {(farms || []).map((f) => {
-          const photo = f.photos.find((p) => p.is_cover)?.url || f.photos[0]?.url;
-          return (
-            <Link key={f.id} to={`/farm/${f.id}`} style={styles.card}>
-              <div style={{ ...styles.cardImg, backgroundImage: photo ? `url("${photo}")` : "none" }}>
-                {!photo && <div style={styles.cardImgPlaceholder}>لا توجد صورة</div>}
+        {(farms || []).map((f) => (
+          <Link key={f.id} to={`/farm/${f.id}`} style={styles.card}>
+            <div style={styles.cardName}>{f.name}</div>
+            {f.location && (
+              <div style={styles.cardLoc}>
+                <MapPin size={12} /> {f.location}
               </div>
-              <div style={styles.cardBody}>
-                <div style={styles.cardName}>{f.name}</div>
-                {f.location && (
-                  <div style={styles.cardLoc}>
-                    <MapPin size={12} /> {f.location}
-                  </div>
-                )}
-              </div>
-            </Link>
-          );
-        })}
+            )}
+          </Link>
+        ))}
       </div>
     </div>
   );
@@ -70,10 +52,7 @@ const styles = {
   subtitle: { fontSize: 13, color: "#6B6355", marginTop: 4 },
   loading: { textAlign: "center", color: "#6B6355", padding: 30 },
   grid: { maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12 },
-  card: { display: "block", textDecoration: "none", color: "inherit", background: "#F7F3E9", border: "1px solid #DAD3BE", borderRadius: 14, overflow: "hidden" },
-  cardImg: { height: 180, backgroundSize: "cover", backgroundPosition: "center 75%", background: "#DAD3BE", display: "flex", alignItems: "center", justifyContent: "center" },
-  cardImgPlaceholder: { color: "#6B6355", fontSize: 12 },
-  cardBody: { padding: "12px 14px" },
+  card: { display: "block", textDecoration: "none", color: "inherit", background: "#F7F3E9", border: "1px solid #DAD3BE", borderRadius: 14, padding: "16px 14px" },
   cardName: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 16 },
   cardLoc: { fontSize: 12, color: "#6B6355", display: "flex", alignItems: "center", gap: 4, marginTop: 4 },
 };
