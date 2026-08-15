@@ -8,7 +8,7 @@ export default function PublicFarmList() {
   const [shared, setShared] = useState(false);
 
   async function shareSite() {
-    const shareData = { title: "Jo Farms", text: "استمتع بصيفك مع Jo Farms", url: window.location.origin };
+    const shareData = { title: "Farms Jo", text: "استمتع بصيفك مع Farms Jo", url: window.location.origin };
     if (navigator.share) {
       try { await navigator.share(shareData); } catch { /* user cancelled */ }
     } else {
@@ -51,7 +51,7 @@ export default function PublicFarmList() {
         <div style={styles.brandRow}>
           <img src="/icons/icon-192.png" alt="" style={styles.logo} />
         </div>
-        <div style={styles.title}>Jo Farms</div>
+        <div style={styles.title}>Farms Jo</div>
         <div style={styles.subtitle}>اختر مزرعة لتشوف الأسعار والأيام المتوفرة</div>
       </div>
 

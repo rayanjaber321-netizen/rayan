@@ -114,7 +114,7 @@ export default function PublicFarmDetail() {
   }
 
   async function shareFarm() {
-    const shareData = { title: farm.name, text: `شوف مزرعة ${farm.name} على Jo Farms`, url: window.location.href };
+    const shareData = { title: farm.name, text: `شوف مزرعة ${farm.name} على Farms Jo`, url: window.location.href };
     if (navigator.share) {
       try { await navigator.share(shareData); } catch { /* user cancelled */ }
     } else {
