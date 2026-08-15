@@ -9,10 +9,24 @@ export default function PublicFarmList() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const { data, error } = await supabase.from("farms").select("*").order("created_at");
+      const [farmsRes, photosRes] = await Promise.all([
+        supabase.from("farms").select("*").order("created_at"),
+        supabase.from("farm_photos").select("farm_id, url, is_cover"),
+      ]);
       if (cancelled) return;
-      if (error) console.error("farms load error:", error);
-      setFarms(data || []);
+      if (farmsRes.error) console.error("farms load error:", farmsRes.error);
+      if (photosRes.error) console.error("photos load error:", photosRes.error);
+      const photosByFarm = {};
+      (photosRes.data || []).forEach((p) => {
+        photosByFarm[p.farm_id] = photosByFarm[p.farm_id] || [];
+        photosByFarm[p.farm_id].push(p);
+      });
+      const withPhotos = (farmsRes.data || []).map((f) => {
+        const farmPhotos = photosByFarm[f.id] || [];
+        const cover = farmPhotos.find((p) => p.is_cover)?.url || farmPhotos[0]?.url || null;
+        return { ...f, coverPhoto: cover };
+      });
+      setFarms(withPhotos);
     }
     load();
     return () => { cancelled = true; };
@@ -32,12 +46,19 @@ export default function PublicFarmList() {
       <div style={styles.grid}>
         {(farms || []).map((f) => (
           <Link key={f.id} to={`/farm/${f.id}`} style={styles.card}>
-            <div style={styles.cardName}>{f.name}</div>
-            {f.location && (
-              <div style={styles.cardLoc}>
-                <MapPin size={12} /> {f.location}
-              </div>
+            {f.coverPhoto ? (
+              <img src={f.coverPhoto} alt={f.name} style={styles.thumb} />
+            ) : (
+              <div style={styles.thumbPlaceholder} />
             )}
+            <div>
+              <div style={styles.cardName}>{f.name}</div>
+              {f.location && (
+                <div style={styles.cardLoc}>
+                  <MapPin size={12} /> {f.location}
+                </div>
+              )}
+            </div>
           </Link>
         ))}
       </div>
@@ -52,7 +73,9 @@ const styles = {
   subtitle: { fontSize: 13, color: "#6B6355", marginTop: 4 },
   loading: { textAlign: "center", color: "#6B6355", padding: 30 },
   grid: { maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12 },
-  card: { display: "block", textDecoration: "none", color: "inherit", background: "#F7F3E9", border: "1px solid #DAD3BE", borderRadius: 14, padding: "16px 14px" },
+  card: { display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: "inherit", background: "#F7F3E9", border: "1px solid #DAD3BE", borderRadius: 14, padding: "12px 14px" },
+  thumb: { width: 56, height: 56, borderRadius: 10, objectFit: "cover", flexShrink: 0 },
+  thumbPlaceholder: { width: 56, height: 56, borderRadius: 10, background: "#DAD3BE", flexShrink: 0 },
   cardName: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 16 },
   cardLoc: { fontSize: 12, color: "#6B6355", display: "flex", alignItems: "center", gap: 4, marginTop: 4 },
 };
