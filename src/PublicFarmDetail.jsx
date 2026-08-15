@@ -8,8 +8,14 @@ const CLIQ_BANK = "البنك الإسلامي الأردني";
 import { supabase } from "./supabaseClient.js";
 import {
   ARABIC_MONTHS, WEEKDAYS, PRICE_GROUPS, DEFAULT_TIMES,
-  dateKey, fmtMoney, toDateTime, groupForWeekday, defaultPriceSet, buildMonthGrid,
+  dateKey, fmtMoney, fmtTime12, toDateTime, groupForWeekday, defaultPriceSet, buildMonthGrid,
 } from "./shared.js";
+
+const BOOKING_RULES = [
+  "يجب دفع عربون لتأكيد الحجز",
+  "يُدفع المبلغ المتبقي عند الوصول",
+  "يوجد تأمين 50 دينار مسترد بالكامل عند الخروج",
+];
 
 export default function PublicFarmDetail() {
   const { farmId } = useParams();
@@ -22,6 +28,7 @@ export default function PublicFarmDetail() {
   const [lightboxIndex, setLightboxIndex] = useState(null);
   const [descExpanded, setDescExpanded] = useState(false);
   const [aliasCopied, setAliasCopied] = useState(false);
+  const [selectedDay, setSelectedDay] = useState(null);
   const touchStartX = React.useRef(null);
 
   useEffect(() => {
@@ -181,7 +188,7 @@ export default function PublicFarmDetail() {
               const dayFree = !isOccupied(k, "day");
               const nightFree = !isOccupied(k, "night");
               return (
-                <div key={idx} style={styles.dayCell}>
+                <div key={idx} style={styles.dayCell} onClick={() => setSelectedDay(d)}>
                   <div className="fc-num" style={styles.dayNum}>{d}</div>
                   <div style={{ ...styles.slotHalf, background: dayFree ? "#C9D3A9" : "#E9C9C9" }} title={`نهاري — ${fmtMoney(priceFor(d, "day"))}`}>
                     <Sun size={10} color={dayFree ? "#3B4520" : "#7A2E2E"} />
@@ -226,6 +233,43 @@ export default function PublicFarmDetail() {
           </div>
         </div>
       </div>
+
+      {selectedDay !== null && (
+        <div style={styles.dayModalOverlay} onClick={() => setSelectedDay(null)}>
+          <div style={styles.dayModal} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.dayModalHeader}>
+              <div style={styles.sectionTitle}>{selectedDay} {ARABIC_MONTHS[month]} {year}</div>
+              <button className="pf-nav" onClick={() => setSelectedDay(null)} aria-label="إغلاق"><X size={16} /></button>
+            </div>
+
+            {["day", "night"].map((slot) => {
+              const free = !isOccupied(dateKey(year, month, selectedDay), slot);
+              return (
+                <div key={slot} style={styles.dayModalSlot}>
+                  <div style={styles.dayModalSlotHead}>
+                    <span style={styles.dayModalSlotLabelGroup}>
+                      {slot === "day" ? <Sun size={14} color="#7A6A2E" /> : <Moon size={14} color="#34345C" />}
+                      <span style={styles.dayModalSlotLabel}>{slot === "day" ? "صباحي" : "سهرة"}</span>
+                    </span>
+                    <span style={{ ...styles.dayModalStatus, color: free ? "#3B4520" : "#791F1F" }}>{free ? "متاح" : "محجوز"}</span>
+                  </div>
+                  <div style={styles.dayModalSlotRow}>
+                    <span>{fmtTime12(DEFAULT_TIMES[slot].start)} – {fmtTime12(DEFAULT_TIMES[slot].end)}</span>
+                    <span className="fc-num">{fmtMoney(priceFor(selectedDay, slot))}</span>
+                  </div>
+                </div>
+              );
+            })}
+
+            <div style={styles.dayModalPolicy}>
+              <div style={styles.sectionTitle}>طريقة الحجز</div>
+              <ol style={styles.dayModalList}>
+                {BOOKING_RULES.map((rule, i) => <li key={i}>{rule}</li>)}
+              </ol>
+            </div>
+          </div>
+        </div>
+      )}
 
       {lightboxIndex !== null && photos[lightboxIndex] && (
         <div style={styles.lightboxOverlay} onClick={() => setLightboxIndex(null)}>
@@ -275,6 +319,17 @@ const styles = {
   priceLabel: { color: "#4A453A" },
   priceValues: { display: "flex", gap: 12, fontFamily: "'IBM Plex Mono', monospace" },
   guestNote: { fontSize: 11, color: "#6B6355", marginTop: 8 },
+  dayModalOverlay: { position: "fixed", inset: 0, background: "rgba(15,13,9,0.5)", zIndex: 150, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 },
+  dayModal: { background: "#F7F3E9", borderRadius: 14, border: "1px solid #DAD3BE", padding: 16, width: "100%", maxWidth: 360, maxHeight: "85vh", overflowY: "auto" },
+  dayModalHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  dayModalSlot: { background: "#FFFFFF", border: "1px solid #DAD3BE", borderRadius: 10, padding: "10px 12px", marginBottom: 8 },
+  dayModalSlotHead: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
+  dayModalSlotLabelGroup: { display: "flex", alignItems: "center", gap: 6 },
+  dayModalSlotLabel: { fontWeight: 700, fontSize: 13 },
+  dayModalStatus: { fontSize: 11.5, fontWeight: 700 },
+  dayModalSlotRow: { display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#4A453A" },
+  dayModalPolicy: { marginTop: 14 },
+  dayModalList: { margin: 0, paddingRight: 18, fontSize: 12.5, color: "#4A453A", lineHeight: 1.9 },
   mapsLink: { display: "inline-flex", alignItems: "center", gap: 5, marginTop: 10, fontSize: 12.5, fontWeight: 700, color: "#BC6C25", textDecoration: "none" },
   cliqRow: { display: "flex", alignItems: "center", gap: 10 },
   cliqIcon: { width: 38, height: 38, borderRadius: 10, background: "#EDECF6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
@@ -293,7 +348,7 @@ const styles = {
   weekDay: { textAlign: "center", fontSize: 10, color: "#6B6355", fontWeight: 500, paddingBottom: 4 },
   grid: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 },
   blankCell: { minHeight: 54 },
-  dayCell: { background: "#FFFFFF", borderRadius: 8, overflow: "hidden", border: "1px solid #DAD3BE", display: "flex", flexDirection: "column", minHeight: 54 },
+  dayCell: { background: "#FFFFFF", borderRadius: 8, overflow: "hidden", border: "1px solid #DAD3BE", display: "flex", flexDirection: "column", minHeight: 54, cursor: "pointer" },
   dayNum: { textAlign: "right", fontSize: 9, color: "#6B6355", padding: "2px 4px 0 4px" },
   slotHalf: { height: 20, display: "flex", alignItems: "center", justifyContent: "center" },
   lightboxOverlay: { position: "fixed", inset: 0, background: "rgba(15,13,9,0.92)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" },
