@@ -38,8 +38,8 @@ export default function PublicFarmList() {
       <div style={styles.header}>
         <div style={styles.brandRow}>
           <img src="/icons/icon-192.png" alt="" style={styles.logo} />
-          <div style={styles.title}>Jo Farms</div>
         </div>
+        <div style={styles.title}>Jo Farms</div>
         <div style={styles.subtitle}>اختر مزرعة لتشوف الأسعار والأيام المتوفرة</div>
       </div>
 
@@ -72,8 +72,8 @@ export default function PublicFarmList() {
 const styles = {
   page: { fontFamily: "'Tajawal', sans-serif", background: "#EAE4D6", color: "#23291F", minHeight: "100svh", padding: "24px 16px", boxSizing: "border-box" },
   header: { maxWidth: 480, margin: "0 auto 18px", textAlign: "center" },
-  brandRow: { display: "flex", alignItems: "center", justifyContent: "center", gap: 10 },
-  logo: { width: 40, height: 40, borderRadius: 10 },
+  brandRow: { display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 8 },
+  logo: { width: 76, height: 76, borderRadius: 18, boxShadow: "0 2px 10px rgba(35,41,31,0.18)" },
   title: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 24 },
   subtitle: { fontSize: 13, color: "#6B6355", marginTop: 4 },
   loading: { textAlign: "center", color: "#6B6355", padding: 30 },
