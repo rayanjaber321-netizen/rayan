@@ -47,11 +47,11 @@ export default function PublicFarmList() {
         {(farms || []).map((f) => (
           <Link key={f.id} to={`/farm/${f.id}`} style={styles.card}>
             {f.coverPhoto ? (
-              <img src={f.coverPhoto} alt={f.name} style={styles.thumb} />
+              <img src={f.coverPhoto} alt={f.name} style={styles.cardImg} />
             ) : (
-              <div style={styles.thumbPlaceholder} />
+              <div style={styles.cardImgPlaceholder} />
             )}
-            <div>
+            <div style={styles.cardBody}>
               <div style={styles.cardName}>{f.name}</div>
               {f.location && (
                 <div style={styles.cardLoc}>
@@ -73,9 +73,10 @@ const styles = {
   subtitle: { fontSize: 13, color: "#6B6355", marginTop: 4 },
   loading: { textAlign: "center", color: "#6B6355", padding: 30 },
   grid: { maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12 },
-  card: { display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: "inherit", background: "#F7F3E9", border: "1px solid #DAD3BE", borderRadius: 14, padding: "12px 14px" },
-  thumb: { width: 56, height: 56, borderRadius: 10, objectFit: "cover", flexShrink: 0 },
-  thumbPlaceholder: { width: 56, height: 56, borderRadius: 10, background: "#DAD3BE", flexShrink: 0 },
+  card: { display: "block", textDecoration: "none", color: "inherit", background: "#F7F3E9", border: "1px solid #DAD3BE", borderRadius: 14, overflow: "hidden" },
+  cardImg: { display: "block", width: "100%", height: 180, objectFit: "cover", objectPosition: "center 75%" },
+  cardImgPlaceholder: { width: "100%", height: 180, background: "#DAD3BE" },
+  cardBody: { padding: "12px 14px" },
   cardName: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 16 },
   cardLoc: { fontSize: 12, color: "#6B6355", display: "flex", alignItems: "center", gap: 4, marginTop: 4 },
 };
