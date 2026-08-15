@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ChevronRight, ChevronLeft, MapPin, Sun, Moon, ArrowRight, X } from "lucide-react";
+import { ChevronRight, ChevronLeft, MapPin, Sun, Moon, ArrowRight, X, MessageCircle, Phone } from "lucide-react";
+
+const CONTACT_PHONE = "962788083859";
 import { supabase } from "./supabaseClient.js";
 import {
   ARABIC_MONTHS, WEEKDAYS, PRICE_GROUPS, DEFAULT_TIMES,
@@ -132,6 +134,22 @@ export default function PublicFarmDetail() {
         </div>
 
         <div style={styles.section}>
+          <div style={styles.sectionTitle}>للتواصل والحجز</div>
+          <div style={styles.contactRow}>
+            <a
+              href={`https://wa.me/${CONTACT_PHONE}?text=${encodeURIComponent(`مرحبا، بدي أستفسر عن حجز ${farm.name}`)}`}
+              target="_blank" rel="noopener noreferrer"
+              style={{ ...styles.contactBtn, ...styles.whatsappBtn }}
+            >
+              <MessageCircle size={16} /> واتساب
+            </a>
+            <a href={`tel:+${CONTACT_PHONE}`} style={{ ...styles.contactBtn, ...styles.callBtn }}>
+              <Phone size={16} /> اتصال
+            </a>
+          </div>
+        </div>
+
+        <div style={styles.section}>
           <div style={styles.sectionTitle}>الأيام المتوفرة</div>
           <div style={styles.monthNav}>
             <button className="pf-nav" onClick={() => setCurrent(new Date(year, month + 1, 1))}><ChevronRight size={16} /></button>
@@ -213,6 +231,10 @@ const styles = {
   priceValues: { display: "flex", gap: 12, fontFamily: "'IBM Plex Mono', monospace" },
   guestNote: { fontSize: 11, color: "#6B6355", marginTop: 8 },
   mapsLink: { display: "inline-flex", alignItems: "center", gap: 5, marginTop: 10, fontSize: 12.5, fontWeight: 700, color: "#BC6C25", textDecoration: "none" },
+  contactRow: { display: "flex", gap: 10 },
+  contactBtn: { flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "11px 0", borderRadius: 10, fontSize: 13.5, fontWeight: 700, textDecoration: "none" },
+  whatsappBtn: { background: "#25D366", color: "#fff" },
+  callBtn: { background: "#34345C", color: "#fff" },
   monthNav: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   monthLabel: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 14 },
   legend: { display: "flex", gap: 14, marginBottom: 8 },
