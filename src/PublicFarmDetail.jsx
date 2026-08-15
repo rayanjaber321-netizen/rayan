@@ -98,9 +98,18 @@ export default function PublicFarmDetail() {
 
   const bookingReady = bookingSlot && bookingForm.name.trim() && bookingForm.phone.trim() && bookingForm.guests;
 
+  function bookingPriceBreakdown() {
+    const base = priceFor(selectedDay, bookingSlot);
+    const guests = Number(bookingForm.guests) || 0;
+    const extraGuests = Math.max(0, guests - prices.guestLimit);
+    const extraFee = extraGuests * prices.guestFee;
+    return { base, extraGuests, extraFee, total: base + extraFee };
+  }
+
   function confirmBooking() {
     if (!bookingReady) return;
     const slotLabel = bookingSlot === "day" ? "صباحي" : "سهرة";
+    const { base, extraGuests, extraFee, total } = bookingPriceBreakdown();
     const message = [
       `مرحبا، بدي أأكد حجز:`,
       `المزرعة: ${farm.name}`,
@@ -109,6 +118,9 @@ export default function PublicFarmDetail() {
       `الاسم: ${bookingForm.name.trim()}`,
       `رقم الجوال: ${bookingForm.phone.trim()}`,
       `عدد الأشخاص: ${bookingForm.guests}`,
+      `السعر الأساسي: ${fmtMoney(base)}`,
+      ...(extraGuests > 0 ? [`رسوم ${extraGuests} أشخاص إضافيين: ${fmtMoney(extraFee)}`] : []),
+      `السعر النهائي: ${fmtMoney(total)}`,
     ].join("\n");
     window.open(`https://wa.me/${CONTACT_PHONE}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
   }
@@ -323,7 +335,7 @@ export default function PublicFarmDetail() {
               {!bookingSlot && <div style={styles.bookingHint}>اختر فترة صباحي أو سهرة فوق أولاً</div>}
               <input
                 style={styles.bookingInput}
-                placeholder="اسم العميل"
+                placeholder="الاسم"
                 value={bookingForm.name}
                 onChange={(e) => setBookingForm({ ...bookingForm, name: e.target.value })}
               />
@@ -342,6 +354,18 @@ export default function PublicFarmDetail() {
                 value={bookingForm.guests}
                 onChange={(e) => setBookingForm({ ...bookingForm, guests: e.target.value })}
               />
+              {bookingSlot && bookingForm.guests > 0 && (() => {
+                const { base, extraGuests, extraFee, total } = bookingPriceBreakdown();
+                return (
+                  <div style={styles.bookingPriceBox}>
+                    <div style={styles.dayModalSlotRow}><span>السعر الأساسي</span><span className="fc-num">{fmtMoney(base)}</span></div>
+                    {extraGuests > 0 && (
+                      <div style={styles.dayModalSlotRow}><span>رسوم {extraGuests} أشخاص إضافيين فوق {prices.guestLimit}</span><span className="fc-num">{fmtMoney(extraFee)}</span></div>
+                    )}
+                    <div style={{ ...styles.dayModalSlotRow, ...styles.bookingTotalRow }}><span>السعر النهائي</span><span className="fc-num">{fmtMoney(total)}</span></div>
+                  </div>
+                );
+              })()}
               <button
                 onClick={confirmBooking}
                 disabled={!bookingReady}
@@ -420,6 +444,8 @@ const styles = {
   bookingHint: { fontSize: 11.5, color: "#6B6355", marginBottom: 8 },
   bookingInput: { width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 8, border: "1px solid #C9C0A8", background: "#FFFFFF", color: "#23291F", fontSize: 13.5, fontFamily: "'Tajawal', sans-serif", marginBottom: 8 },
   bookingConfirmBtn: { width: "100%", marginTop: 4 },
+  bookingPriceBox: { background: "#FFFFFF", border: "1px solid #DAD3BE", borderRadius: 10, padding: "10px 12px", marginBottom: 8, display: "flex", flexDirection: "column", gap: 4 },
+  bookingTotalRow: { fontWeight: 800, borderTop: "1px solid #EFE9DA", paddingTop: 4, marginTop: 2 },
   mapsLink: { display: "inline-flex", alignItems: "center", gap: 5, marginTop: 10, fontSize: 12.5, fontWeight: 700, color: "#BC6C25", textDecoration: "none" },
   cliqRow: { display: "flex", alignItems: "center", gap: 10 },
   cliqIcon: { width: 38, height: 38, borderRadius: 10, background: "#EDECF6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
