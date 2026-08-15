@@ -29,6 +29,8 @@ export default function PublicFarmDetail() {
   const [descExpanded, setDescExpanded] = useState(false);
   const [aliasCopied, setAliasCopied] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
+  const [bookingSlot, setBookingSlot] = useState(null);
+  const [bookingForm, setBookingForm] = useState({ name: "", phone: "", guests: "" });
   const [shared, setShared] = useState(false);
   const touchStartX = React.useRef(null);
 
@@ -92,6 +94,23 @@ export default function PublicFarmDetail() {
       setAliasCopied(true);
       setTimeout(() => setAliasCopied(false), 2000);
     });
+  }
+
+  const bookingReady = bookingSlot && bookingForm.name.trim() && bookingForm.phone.trim() && bookingForm.guests;
+
+  function confirmBooking() {
+    if (!bookingReady) return;
+    const slotLabel = bookingSlot === "day" ? "صباحي" : "سهرة";
+    const message = [
+      `مرحبا، بدي أأكد حجز:`,
+      `المزرعة: ${farm.name}`,
+      `التاريخ: ${selectedDay} ${ARABIC_MONTHS[month]} ${year}`,
+      `الفترة: ${slotLabel}`,
+      `الاسم: ${bookingForm.name.trim()}`,
+      `رقم الجوال: ${bookingForm.phone.trim()}`,
+      `عدد الأشخاص: ${bookingForm.guests}`,
+    ].join("\n");
+    window.open(`https://wa.me/${CONTACT_PHONE}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
   }
 
   async function shareFarm() {
@@ -208,7 +227,12 @@ export default function PublicFarmDetail() {
                 <div
                   key={idx}
                   style={{ ...styles.dayCell, ...(isPast ? styles.dayCellPast : {}) }}
-                  onClick={() => !isPast && setSelectedDay(d)}
+                  onClick={() => {
+                    if (isPast) return;
+                    setSelectedDay(d);
+                    setBookingSlot(null);
+                    setBookingForm({ name: "", phone: "", guests: "" });
+                  }}
                 >
                   <div className="fc-num" style={styles.dayNum}>{d}</div>
                   <div style={{ ...styles.slotHalf, background: isPast ? "#DDD6C4" : (dayFree ? "#C9D3A9" : "#E9C9C9") }} title={`نهاري — ${fmtMoney(priceFor(d, "day"))}`}>
@@ -265,8 +289,13 @@ export default function PublicFarmDetail() {
 
             {["day", "night"].map((slot) => {
               const free = !isOccupied(dateKey(year, month, selectedDay), slot);
+              const isSelected = bookingSlot === slot;
               return (
-                <div key={slot} style={styles.dayModalSlot}>
+                <div
+                  key={slot}
+                  style={{ ...styles.dayModalSlot, ...(free ? styles.dayModalSlotClickable : {}), ...(isSelected ? styles.dayModalSlotSelected : {}) }}
+                  onClick={() => free && setBookingSlot(slot)}
+                >
                   <div style={styles.dayModalSlotHead}>
                     <span style={styles.dayModalSlotLabelGroup}>
                       {slot === "day" ? <Sun size={14} color="#7A6A2E" /> : <Moon size={14} color="#34345C" />}
@@ -287,6 +316,39 @@ export default function PublicFarmDetail() {
               <ol style={styles.dayModalList}>
                 {BOOKING_RULES.map((rule, i) => <li key={i}>{rule}</li>)}
               </ol>
+            </div>
+
+            <div style={styles.dayModalBookingForm}>
+              <div style={styles.sectionTitle}>احجز هالتاريخ</div>
+              {!bookingSlot && <div style={styles.bookingHint}>اختر فترة صباحي أو سهرة فوق أولاً</div>}
+              <input
+                style={styles.bookingInput}
+                placeholder="اسم العميل"
+                value={bookingForm.name}
+                onChange={(e) => setBookingForm({ ...bookingForm, name: e.target.value })}
+              />
+              <input
+                type="tel"
+                style={styles.bookingInput}
+                placeholder="رقم الجوال"
+                value={bookingForm.phone}
+                onChange={(e) => setBookingForm({ ...bookingForm, phone: e.target.value })}
+              />
+              <input
+                type="number"
+                min="1"
+                style={styles.bookingInput}
+                placeholder="عدد الأشخاص"
+                value={bookingForm.guests}
+                onChange={(e) => setBookingForm({ ...bookingForm, guests: e.target.value })}
+              />
+              <button
+                onClick={confirmBooking}
+                disabled={!bookingReady}
+                style={{ ...styles.contactBtn, ...styles.whatsappBtn, ...styles.bookingConfirmBtn, opacity: bookingReady ? 1 : 0.5 }}
+              >
+                <MessageCircle size={16} /> تأكيد الحجز عبر واتساب
+              </button>
             </div>
           </div>
         </div>
@@ -345,6 +407,8 @@ const styles = {
   dayModal: { background: "#F7F3E9", borderRadius: 14, border: "1px solid #DAD3BE", padding: 16, width: "100%", maxWidth: 360, maxHeight: "85vh", overflowY: "auto" },
   dayModalHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
   dayModalSlot: { background: "#FFFFFF", border: "1px solid #DAD3BE", borderRadius: 10, padding: "10px 12px", marginBottom: 8 },
+  dayModalSlotClickable: { cursor: "pointer" },
+  dayModalSlotSelected: { borderColor: "#BC6C25", borderWidth: 2, boxShadow: "0 0 0 1px #BC6C25 inset" },
   dayModalSlotHead: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
   dayModalSlotLabelGroup: { display: "flex", alignItems: "center", gap: 6 },
   dayModalSlotLabel: { fontWeight: 700, fontSize: 13 },
@@ -352,6 +416,10 @@ const styles = {
   dayModalSlotRow: { display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#4A453A" },
   dayModalPolicy: { marginTop: 14 },
   dayModalList: { margin: 0, paddingRight: 18, fontSize: 12.5, color: "#4A453A", lineHeight: 1.9 },
+  dayModalBookingForm: { marginTop: 14 },
+  bookingHint: { fontSize: 11.5, color: "#6B6355", marginBottom: 8 },
+  bookingInput: { width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 8, border: "1px solid #C9C0A8", background: "#FFFFFF", color: "#23291F", fontSize: 13.5, fontFamily: "'Tajawal', sans-serif", marginBottom: 8 },
+  bookingConfirmBtn: { width: "100%", marginTop: 4 },
   mapsLink: { display: "inline-flex", alignItems: "center", gap: 5, marginTop: 10, fontSize: 12.5, fontWeight: 700, color: "#BC6C25", textDecoration: "none" },
   cliqRow: { display: "flex", alignItems: "center", gap: 10 },
   cliqIcon: { width: 38, height: 38, borderRadius: 10, background: "#EDECF6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
