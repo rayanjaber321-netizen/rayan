@@ -93,6 +93,9 @@ export default function FarmCalendar() {
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const touchStartY = useRef(null);
+  const [currentEmail, setCurrentEmail] = useState("");
+  const [accountDraft, setAccountDraft] = useState({ email: "", password: "", confirmPassword: "" });
+  const [savingAccount, setSavingAccount] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,6 +145,31 @@ export default function FarmCalendar() {
     load();
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      const email = data?.user?.email || "";
+      setCurrentEmail(email);
+      setAccountDraft((prev) => ({ ...prev, email }));
+    });
+  }, []);
+
+  async function saveAccount() {
+    const updates = {};
+    if (accountDraft.email.trim() && accountDraft.email.trim() !== currentEmail) updates.email = accountDraft.email.trim();
+    if (accountDraft.password) {
+      if (accountDraft.password.length < 6) { alert("كلمة المرور لازم تكون 6 أحرف على الأقل"); return; }
+      if (accountDraft.password !== accountDraft.confirmPassword) { alert("كلمتا المرور غير متطابقتين"); return; }
+      updates.password = accountDraft.password;
+    }
+    if (!Object.keys(updates).length) return;
+    setSavingAccount(true);
+    const { error } = await supabase.auth.updateUser(updates);
+    setSavingAccount(false);
+    if (error) { console.error(error); alert("صار خطأ: " + error.message); return; }
+    setAccountDraft((prev) => ({ ...prev, password: "", confirmPassword: "" }));
+    alert(updates.email ? "تم التحديث. إذا تغيّر البريد الإلكتروني ممكن تحتاج تأكيده من صندوق الوارد قبل ما يفعّل." : "تم تغيير كلمة المرور بنجاح");
+  }
 
   const year = current.getFullYear();
   const month = current.getMonth();
@@ -686,6 +714,7 @@ export default function FarmCalendar() {
               <button className="fc-btn" onClick={() => setSettingsTab("farms")} style={{ ...styles.tabBtn, ...(settingsTab === "farms" ? styles.tabBtnActive : {}) }}>المزارع</button>
               <button className="fc-btn" onClick={() => { setSettingsTab("pricing"); setPricingFarmId(selectedFarmId); setDraftPrices({ ...defaultPriceSet(), ...(prices[selectedFarmId] || {}) }); }} style={{ ...styles.tabBtn, ...(settingsTab === "pricing" ? styles.tabBtnActive : {}) }}>الأسعار</button>
               <button className="fc-btn" onClick={() => { setSettingsTab("photos"); setPricingFarmId(selectedFarmId); }} style={{ ...styles.tabBtn, ...(settingsTab === "photos" ? styles.tabBtnActive : {}) }}>الصور</button>
+              <button className="fc-btn" onClick={() => setSettingsTab("account")} style={{ ...styles.tabBtn, ...(settingsTab === "account" ? styles.tabBtnActive : {}) }}>الحساب</button>
             </div>
 
             {settingsTab === "farms" && (
@@ -792,6 +821,21 @@ export default function FarmCalendar() {
                     style={{ display: "none" }}
                   />
                 </label>
+              </div>
+            )}
+
+            {settingsTab === "account" && (
+              <div style={styles.formGrid}>
+                <label style={styles.label}>البريد الإلكتروني (اسم الدخول)</label>
+                <input className="fc-input" style={styles.input} value={accountDraft.email} onChange={(e) => setAccountDraft({ ...accountDraft, email: e.target.value })} placeholder="بريد إلكتروني" />
+
+                <label style={{ ...styles.label, marginTop: 10 }}>كلمة مرور جديدة (اتركها فاضية إذا ما بدك تغييرها)</label>
+                <input className="fc-input" type="password" style={styles.input} value={accountDraft.password} onChange={(e) => setAccountDraft({ ...accountDraft, password: e.target.value })} placeholder="كلمة المرور الجديدة" />
+                <input className="fc-input" type="password" style={styles.input} value={accountDraft.confirmPassword} onChange={(e) => setAccountDraft({ ...accountDraft, confirmPassword: e.target.value })} placeholder="تأكيد كلمة المرور الجديدة" />
+
+                <button className="fc-btn" onClick={saveAccount} disabled={savingAccount} style={{ ...styles.saveBtn, marginTop: 10, marginRight: 0, opacity: savingAccount ? 0.6 : 1 }}>
+                  {savingAccount ? "...جاري الحفظ" : "حفظ بيانات الدخول"}
+                </button>
               </div>
             )}
           </div>
