@@ -203,14 +203,19 @@ export default function PublicFarmDetail() {
               const k = dateKey(year, month, d);
               const dayFree = !isOccupied(k, "day");
               const nightFree = !isOccupied(k, "night");
+              const isPast = new Date(year, month, d) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
               return (
-                <div key={idx} style={styles.dayCell} onClick={() => setSelectedDay(d)}>
+                <div
+                  key={idx}
+                  style={{ ...styles.dayCell, ...(isPast ? styles.dayCellPast : {}) }}
+                  onClick={() => !isPast && setSelectedDay(d)}
+                >
                   <div className="fc-num" style={styles.dayNum}>{d}</div>
-                  <div style={{ ...styles.slotHalf, background: dayFree ? "#C9D3A9" : "#E9C9C9" }} title={`نهاري — ${fmtMoney(priceFor(d, "day"))}`}>
-                    <Sun size={10} color={dayFree ? "#3B4520" : "#7A2E2E"} />
+                  <div style={{ ...styles.slotHalf, background: isPast ? "#DDD6C4" : (dayFree ? "#C9D3A9" : "#E9C9C9") }} title={`نهاري — ${fmtMoney(priceFor(d, "day"))}`}>
+                    <Sun size={10} color={isPast ? "#A79F8C" : (dayFree ? "#3B4520" : "#7A2E2E")} />
                   </div>
-                  <div style={{ ...styles.slotHalf, background: nightFree ? "#34345C" : "#7A2E2E" }} title={`سهرة — ${fmtMoney(priceFor(d, "night"))}`}>
-                    <Moon size={10} color="#EDECF6" />
+                  <div style={{ ...styles.slotHalf, background: isPast ? "#CFC8B6" : (nightFree ? "#34345C" : "#7A2E2E") }} title={`سهرة — ${fmtMoney(priceFor(d, "night"))}`}>
+                    <Moon size={10} color={isPast ? "#A79F8C" : "#EDECF6"} />
                   </div>
                 </div>
               );
@@ -366,6 +371,7 @@ const styles = {
   grid: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 },
   blankCell: { minHeight: 54 },
   dayCell: { background: "#FFFFFF", borderRadius: 8, overflow: "hidden", border: "1px solid #DAD3BE", display: "flex", flexDirection: "column", minHeight: 54, cursor: "pointer" },
+  dayCellPast: { opacity: 0.55, cursor: "default" },
   dayNum: { textAlign: "right", fontSize: 9, color: "#6B6355", padding: "2px 4px 0 4px" },
   slotHalf: { height: 20, display: "flex", alignItems: "center", justifyContent: "center" },
   lightboxOverlay: { position: "fixed", inset: 0, background: "rgba(15,13,9,0.92)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" },
