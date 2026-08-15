@@ -14,6 +14,14 @@ export default function AdminGate({ children }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const link = document.querySelector('link[rel="manifest"]');
+    if (!link) return;
+    const prevHref = link.href;
+    link.setAttribute("href", "/admin-manifest.webmanifest");
+    return () => link.setAttribute("href", prevHref);
+  }, []);
+
   async function handleLogin(e) {
     e.preventDefault();
     setError("");
