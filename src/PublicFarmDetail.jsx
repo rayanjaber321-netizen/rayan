@@ -21,7 +21,7 @@ export default function PublicFarmDetail() {
     async function load() {
       const [farmRes, photosRes, pricesRes, availRes] = await Promise.all([
         supabase.from("farms").select("*").eq("id", farmId).single(),
-        supabase.from("farm_photos").select("*").eq("farm_id", farmId).order("created_at"),
+        supabase.from("farm_photos").select("*").eq("farm_id", farmId).order("is_cover", { ascending: false }).order("created_at"),
         supabase.from("farm_prices").select("*").eq("farm_id", farmId).single(),
         supabase.from("public_availability").select("*").eq("farm_id", farmId),
       ]);

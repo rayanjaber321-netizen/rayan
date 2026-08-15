@@ -10,7 +10,7 @@ export default function PublicFarmList() {
     let cancelled = false;
     supabase
       .from("farms")
-      .select("*, farm_photos(url)")
+      .select("*, farm_photos(url, is_cover)")
       .order("created_at")
       .then(({ data }) => {
         if (!cancelled) setFarms(data || []);
@@ -31,7 +31,7 @@ export default function PublicFarmList() {
 
       <div style={styles.grid}>
         {(farms || []).map((f) => {
-          const photo = f.farm_photos?.[0]?.url;
+          const photo = f.farm_photos?.find((p) => p.is_cover)?.url || f.farm_photos?.[0]?.url;
           return (
             <Link key={f.id} to={`/farm/${f.id}`} style={styles.card}>
               <div style={{ ...styles.cardImg, backgroundImage: photo ? `url(${photo})` : "none" }}>

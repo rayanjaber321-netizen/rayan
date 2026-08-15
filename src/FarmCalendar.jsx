@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { Sun, Moon, X, Settings, ChevronRight, ChevronLeft, Banknote, CreditCard, Landmark, Trash2, User, Phone, StickyNote, Plus, MapPin, Pencil, RefreshCw, Wallet, LogOut } from "lucide-react";
+import { Sun, Moon, X, Settings, ChevronRight, ChevronLeft, Banknote, CreditCard, Landmark, Trash2, User, Phone, StickyNote, Plus, MapPin, Pencil, RefreshCw, Wallet, LogOut, Star } from "lucide-react";
 import { supabase } from "./supabaseClient.js";
 import {
   ARABIC_MONTHS, WEEKDAYS, PRICE_GROUPS, DEFAULT_TIMES,
@@ -124,7 +124,7 @@ export default function FarmCalendar() {
       const photosById = {};
       (photosRes.data || []).forEach((row) => {
         photosById[row.farm_id] = photosById[row.farm_id] || [];
-        photosById[row.farm_id].push({ id: row.id, url: row.url });
+        photosById[row.farm_id].push({ id: row.id, url: row.url, isCover: !!row.is_cover });
       });
 
       setFarms(loadedFarms);
@@ -378,6 +378,16 @@ export default function FarmCalendar() {
     setPhotos((prev) => ({ ...prev, [farmId]: (prev[farmId] || []).filter((p) => p.id !== photoId) }));
     const { error } = await supabase.from("farm_photos").delete().eq("id", photoId);
     if (error) console.error(error);
+  }
+  async function setCoverPhoto(farmId, photoId) {
+    setPhotos((prev) => ({
+      ...prev,
+      [farmId]: (prev[farmId] || []).map((p) => ({ ...p, isCover: p.id === photoId })),
+    }));
+    const { error: clearErr } = await supabase.from("farm_photos").update({ is_cover: false }).eq("farm_id", farmId);
+    if (clearErr) { console.error(clearErr); return; }
+    const { error: setErr } = await supabase.from("farm_photos").update({ is_cover: true }).eq("id", photoId);
+    if (setErr) console.error(setErr);
   }
 
   const final = Math.max(0, Number(form.base || 0) + Number(form.extraGuestFee || 0) - Number(form.discount || 0));
@@ -749,10 +759,20 @@ export default function FarmCalendar() {
                   {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
 
+                <div style={styles.photoNote}>دوس نجمة الصورة عشان تصير هي صورة الغلاف يلي بتظهر بالواجهة العامة</div>
                 <div style={styles.photoGrid}>
                   {(photos[pricingFarmId] || []).map((p) => (
-                    <div key={p.id} style={styles.photoThumbWrap}>
+                    <div key={p.id} style={{ ...styles.photoThumbWrap, ...(p.isCover ? styles.photoThumbWrapCover : {}) }}>
                       <img src={p.url} alt="" style={styles.photoThumb} />
+                      <button
+                        className="fc-btn"
+                        onClick={() => setCoverPhoto(pricingFarmId, p.id)}
+                        style={{ ...styles.photoStarBtn, ...(p.isCover ? styles.photoStarBtnActive : {}) }}
+                        aria-label="تعيين كصورة رئيسية"
+                        title="تعيين كصورة رئيسية"
+                      >
+                        <Star size={12} color={p.isCover ? "#BC6C25" : "#FFFFFF"} fill={p.isCover ? "#BC6C25" : "none"} />
+                      </button>
                       <button className="fc-btn" onClick={() => deletePhoto(pricingFarmId, p.id)} style={styles.photoDeleteBtn} aria-label="حذف">
                         <X size={12} color="#FFFFFF" />
                       </button>
@@ -921,8 +941,12 @@ const styles = {
   breakdownRow: { display: "flex", justifyContent: "space-between", fontSize: 12, color: "#4A453A", padding: "4px 0" },
   breakdownTotal: { borderTop: "1px solid #DAD3BE", marginTop: 4, paddingTop: 6, fontWeight: 500, color: "#BC6C25" },
   financeItemRight: { display: "flex", alignItems: "center", gap: 6 },
+  photoNote: { fontSize: 11, color: "#6B6355", marginTop: 6 },
   photoGrid: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 10 },
-  photoThumbWrap: { position: "relative", borderRadius: 8, overflow: "hidden", aspectRatio: "1 / 1" },
+  photoThumbWrap: { position: "relative", borderRadius: 8, overflow: "hidden", aspectRatio: "1 / 1", border: "2px solid transparent" },
+  photoThumbWrapCover: { borderColor: "#BC6C25" },
   photoThumb: { width: "100%", height: "100%", objectFit: "cover", display: "block" },
   photoDeleteBtn: { position: "absolute", top: 3, left: 3, background: "rgba(35,41,31,0.65)", borderRadius: "50%", width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center" },
+  photoStarBtn: { position: "absolute", top: 3, right: 3, background: "rgba(35,41,31,0.65)", borderRadius: "50%", width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center" },
+  photoStarBtnActive: { background: "rgba(247,243,233,0.9)" },
 };
