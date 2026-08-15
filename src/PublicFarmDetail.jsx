@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ChevronRight, ChevronLeft, MapPin, Sun, Moon, ArrowRight, X, MessageCircle, Phone } from "lucide-react";
+import { ChevronRight, ChevronLeft, MapPin, Sun, Moon, ArrowRight, X, MessageCircle, Phone, Copy, Check, Landmark } from "lucide-react";
 
 const CONTACT_PHONE = "962788083859";
+const CLIQ_ALIAS = "A24JAB";
+const CLIQ_BANK = "البنك الإسلامي الأردني";
 import { supabase } from "./supabaseClient.js";
 import {
   ARABIC_MONTHS, WEEKDAYS, PRICE_GROUPS, DEFAULT_TIMES,
@@ -19,6 +21,7 @@ export default function PublicFarmDetail() {
   const [availability, setAvailability] = useState([]);
   const [lightboxIndex, setLightboxIndex] = useState(null);
   const [descExpanded, setDescExpanded] = useState(false);
+  const [aliasCopied, setAliasCopied] = useState(false);
   const touchStartX = React.useRef(null);
 
   useEffect(() => {
@@ -74,6 +77,13 @@ export default function PublicFarmDetail() {
     const weekday = new Date(year, month, day).getDay();
     const group = groupForWeekday(weekday);
     return prices[slot][group];
+  }
+
+  function copyAlias() {
+    navigator.clipboard.writeText(CLIQ_ALIAS).then(() => {
+      setAliasCopied(true);
+      setTimeout(() => setAliasCopied(false), 2000);
+    });
   }
 
   function showNext() { setLightboxIndex((i) => (i + 1) % photos.length); }
@@ -146,6 +156,21 @@ export default function PublicFarmDetail() {
               <MapPin size={13} /> افتح الموقع على الخارطة
             </a>
           )}
+        </div>
+
+        <div style={styles.section}>
+          <div style={styles.sectionTitle}>طرق الدفع</div>
+          <div style={styles.cliqRow}>
+            <div style={styles.cliqIcon}><Landmark size={18} color="#34345C" /></div>
+            <div style={{ flex: 1 }}>
+              <div style={styles.cliqAlias}>{CLIQ_ALIAS}</div>
+              <div style={styles.cliqBank}>كليك (CliQ) — {CLIQ_BANK}</div>
+            </div>
+            <button onClick={copyAlias} style={styles.copyBtn}>
+              {aliasCopied ? <Check size={14} /> : <Copy size={14} />}
+              {aliasCopied ? "نسخ!" : "نسخ"}
+            </button>
+          </div>
         </div>
 
         <div style={styles.section}>
@@ -251,6 +276,11 @@ const styles = {
   priceValues: { display: "flex", gap: 12, fontFamily: "'IBM Plex Mono', monospace" },
   guestNote: { fontSize: 11, color: "#6B6355", marginTop: 8 },
   mapsLink: { display: "inline-flex", alignItems: "center", gap: 5, marginTop: 10, fontSize: 12.5, fontWeight: 700, color: "#BC6C25", textDecoration: "none" },
+  cliqRow: { display: "flex", alignItems: "center", gap: 10 },
+  cliqIcon: { width: 38, height: 38, borderRadius: 10, background: "#EDECF6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  cliqAlias: { fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 16, letterSpacing: 0.5 },
+  cliqBank: { fontSize: 11.5, color: "#6B6355", marginTop: 2 },
+  copyBtn: { display: "flex", alignItems: "center", gap: 5, border: "1px solid #C9C0A8", background: "#FFFFFF", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 700, color: "#4A453A", cursor: "pointer", flexShrink: 0 },
   contactRow: { display: "flex", gap: 10 },
   contactBtn: { flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "11px 0", borderRadius: 10, fontSize: 13.5, fontWeight: 700, textDecoration: "none" },
   whatsappBtn: { background: "#25D366", color: "#fff" },
