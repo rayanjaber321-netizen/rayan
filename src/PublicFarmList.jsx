@@ -71,7 +71,7 @@ const styles = {
   loading: { textAlign: "center", color: "#6B6355", padding: 30 },
   grid: { maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12 },
   card: { display: "block", textDecoration: "none", color: "inherit", background: "#F7F3E9", border: "1px solid #DAD3BE", borderRadius: 14, overflow: "hidden" },
-  cardImg: { height: 150, backgroundSize: "cover", backgroundPosition: "center", background: "#DAD3BE", display: "flex", alignItems: "center", justifyContent: "center" },
+  cardImg: { aspectRatio: "4 / 3", backgroundSize: "cover", backgroundPosition: "center", background: "#DAD3BE", display: "flex", alignItems: "center", justifyContent: "center" },
   cardImgPlaceholder: { color: "#6B6355", fontSize: 12 },
   cardBody: { padding: "12px 14px" },
   cardName: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 16 },
