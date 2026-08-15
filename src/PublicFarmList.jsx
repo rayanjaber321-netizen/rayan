@@ -8,13 +8,23 @@ export default function PublicFarmList() {
 
   useEffect(() => {
     let cancelled = false;
-    supabase
-      .from("farms")
-      .select("*, farm_photos(url, is_cover)")
-      .order("created_at")
-      .then(({ data }) => {
-        if (!cancelled) setFarms(data || []);
+    async function load() {
+      const [farmsRes, photosRes] = await Promise.all([
+        supabase.from("farms").select("*").order("created_at"),
+        supabase.from("farm_photos").select("farm_id, url, is_cover"),
+      ]);
+      if (cancelled) return;
+      if (farmsRes.error) console.error("farms load error:", farmsRes.error);
+      if (photosRes.error) console.error("photos load error:", photosRes.error);
+      const photosByFarm = {};
+      (photosRes.data || []).forEach((p) => {
+        photosByFarm[p.farm_id] = photosByFarm[p.farm_id] || [];
+        photosByFarm[p.farm_id].push(p);
       });
+      const withPhotos = (farmsRes.data || []).map((f) => ({ ...f, photos: photosByFarm[f.id] || [] }));
+      setFarms(withPhotos);
+    }
+    load();
     return () => { cancelled = true; };
   }, []);
 
@@ -31,7 +41,7 @@ export default function PublicFarmList() {
 
       <div style={styles.grid}>
         {(farms || []).map((f) => {
-          const photo = f.farm_photos?.find((p) => p.is_cover)?.url || f.farm_photos?.[0]?.url;
+          const photo = f.photos.find((p) => p.is_cover)?.url || f.photos[0]?.url;
           return (
             <Link key={f.id} to={`/farm/${f.id}`} style={styles.card}>
               <div style={{ ...styles.cardImg, backgroundImage: photo ? `url(${photo})` : "none" }}>
