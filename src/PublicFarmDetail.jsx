@@ -166,7 +166,7 @@ export default function PublicFarmDetail() {
             </button>
           </div>
           <div style={styles.legend}>
-            <div style={styles.legendItem}><Sun size={13} color="#7A6A2E" /> <b>نهاري</b>: من الساعة 10 صباحاً حتى 9 مساءً</div>
+            <div style={styles.legendItem}><Sun size={13} color="#7A6A2E" /> <b>صباحي</b>: من الساعة 10 صباحاً حتى 9 مساءً</div>
             <div style={styles.legendItem}><Moon size={13} color="#34345C" /> <b>سهرة</b>: من الساعة 10 مساءً حتى 8 صباحاً</div>
           </div>
           <div style={styles.weekRow}>
