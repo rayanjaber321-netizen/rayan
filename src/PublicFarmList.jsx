@@ -1,10 +1,22 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { MapPin } from "lucide-react";
+import { MapPin, Share2, Check } from "lucide-react";
 import { supabase } from "./supabaseClient.js";
 
 export default function PublicFarmList() {
   const [farms, setFarms] = useState(null);
+  const [shared, setShared] = useState(false);
+
+  async function shareSite() {
+    const shareData = { title: "Jo Farms", text: "استمتع بصيفك مع Jo Farms", url: window.location.origin };
+    if (navigator.share) {
+      try { await navigator.share(shareData); } catch { /* user cancelled */ }
+    } else {
+      await navigator.clipboard.writeText(shareData.url);
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -41,6 +53,10 @@ export default function PublicFarmList() {
         </div>
         <div style={styles.title}>Jo Farms</div>
         <div style={styles.subtitle}>اختر مزرعة لتشوف الأسعار والأيام المتوفرة</div>
+        <button onClick={shareSite} style={styles.shareBtn}>
+          {shared ? <Check size={13} /> : <Share2 size={13} />}
+          {shared ? "تم نسخ الرابط" : "شارك الموقع"}
+        </button>
       </div>
 
       {farms === null && <div style={styles.loading}>جاري التحميل...</div>}
@@ -76,6 +92,7 @@ const styles = {
   logo: { width: 76, height: 76, borderRadius: 18, boxShadow: "0 2px 10px rgba(35,41,31,0.18)" },
   title: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 24 },
   subtitle: { fontSize: 13, color: "#6B6355", marginTop: 4 },
+  shareBtn: { display: "inline-flex", alignItems: "center", gap: 6, marginTop: 12, border: "1px solid #C9C0A8", background: "#F7F3E9", borderRadius: 20, padding: "7px 16px", fontSize: 12.5, fontWeight: 700, color: "#4A453A", cursor: "pointer" },
   loading: { textAlign: "center", color: "#6B6355", padding: 30 },
   grid: { maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12 },
   card: { display: "block", textDecoration: "none", color: "inherit", background: "#F7F3E9", border: "1px solid #DAD3BE", borderRadius: 14, overflow: "hidden" },

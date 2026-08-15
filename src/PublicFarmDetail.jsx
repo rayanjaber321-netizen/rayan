@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ChevronRight, ChevronLeft, MapPin, Sun, Moon, ArrowRight, X, MessageCircle, Phone, Copy, Check, Landmark } from "lucide-react";
+import { ChevronRight, ChevronLeft, MapPin, Sun, Moon, ArrowRight, X, MessageCircle, Phone, Copy, Check, Landmark, Share2 } from "lucide-react";
 
 const CONTACT_PHONE = "962788083859";
 const CLIQ_ALIAS = "A24JAB";
@@ -29,6 +29,7 @@ export default function PublicFarmDetail() {
   const [descExpanded, setDescExpanded] = useState(false);
   const [aliasCopied, setAliasCopied] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
+  const [shared, setShared] = useState(false);
   const touchStartX = React.useRef(null);
 
   useEffect(() => {
@@ -93,6 +94,17 @@ export default function PublicFarmDetail() {
     });
   }
 
+  async function shareFarm() {
+    const shareData = { title: farm.name, text: `شوف مزرعة ${farm.name} على Jo Farms`, url: window.location.href };
+    if (navigator.share) {
+      try { await navigator.share(shareData); } catch { /* user cancelled */ }
+    } else {
+      await navigator.clipboard.writeText(shareData.url);
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
+    }
+  }
+
   function showNext() { setLightboxIndex((i) => (i + 1) % photos.length); }
   function showPrev() { setLightboxIndex((i) => (i - 1 + photos.length) % photos.length); }
   function handleLightboxTouchStart(e) { touchStartX.current = e.touches[0].clientX; }
@@ -123,7 +135,13 @@ export default function PublicFarmDetail() {
       `}</style>
 
       <div style={styles.wrap}>
-        <Link to="/" style={styles.backLink}><ArrowRight size={14} /> كل المزارع</Link>
+        <div style={styles.topRow}>
+          <Link to="/" style={styles.backLink}><ArrowRight size={14} /> كل المزارع</Link>
+          <button onClick={shareFarm} style={styles.shareBtn}>
+            {shared ? <Check size={13} /> : <Share2 size={13} />}
+            {shared ? "تم نسخ الرابط" : "مشاركة"}
+          </button>
+        </div>
 
         {photos.length > 0 ? (
           <div style={styles.gallery}>
@@ -304,7 +322,9 @@ export default function PublicFarmDetail() {
 const styles = {
   page: { fontFamily: "'Tajawal', sans-serif", background: "#EAE4D6", color: "#23291F", minHeight: "100svh", padding: "20px 14px", boxSizing: "border-box" },
   wrap: { maxWidth: 480, margin: "0 auto" },
-  backLink: { display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "#6B6355", textDecoration: "none", marginBottom: 12 },
+  topRow: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+  backLink: { display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "#6B6355", textDecoration: "none" },
+  shareBtn: { display: "inline-flex", alignItems: "center", gap: 6, border: "1px solid #C9C0A8", background: "#F7F3E9", borderRadius: 20, padding: "6px 14px", fontSize: 12, fontWeight: 700, color: "#4A453A", cursor: "pointer" },
   gallery: { display: "flex", gap: 8, overflowX: "auto", marginBottom: 14, borderRadius: 12 },
   galleryImg: { height: 180, width: 260, objectFit: "cover", borderRadius: 12, flexShrink: 0, cursor: "pointer" },
   galleryPlaceholder: { height: 140, background: "#F1EEE3", border: "1px dashed #C9C0A8", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", color: "#6B6355", fontSize: 12, marginBottom: 14 },
