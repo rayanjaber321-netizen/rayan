@@ -159,37 +159,6 @@ export default function PublicFarmDetail() {
         </div>
 
         <div style={styles.section}>
-          <div style={styles.sectionTitle}>طرق الدفع</div>
-          <div style={styles.cliqRow}>
-            <div style={styles.cliqIcon}><Landmark size={18} color="#34345C" /></div>
-            <div style={{ flex: 1 }}>
-              <div style={styles.cliqAlias}>{CLIQ_ALIAS}</div>
-              <div style={styles.cliqBank}>كليك (CliQ) — {CLIQ_BANK}</div>
-            </div>
-            <button onClick={copyAlias} style={styles.copyBtn}>
-              {aliasCopied ? <Check size={14} /> : <Copy size={14} />}
-              {aliasCopied ? "نسخ!" : "نسخ"}
-            </button>
-          </div>
-        </div>
-
-        <div style={styles.section}>
-          <div style={styles.sectionTitle}>للتواصل والحجز</div>
-          <div style={styles.contactRow}>
-            <a
-              href={`https://wa.me/${CONTACT_PHONE}?text=${encodeURIComponent(`مرحبا، بدي أستفسر عن حجز ${farm.name}`)}`}
-              target="_blank" rel="noopener noreferrer"
-              style={{ ...styles.contactBtn, ...styles.whatsappBtn }}
-            >
-              <MessageCircle size={16} /> واتساب
-            </a>
-            <a href={`tel:+${CONTACT_PHONE}`} style={{ ...styles.contactBtn, ...styles.callBtn }}>
-              <Phone size={16} /> اتصال
-            </a>
-          </div>
-        </div>
-
-        <div style={styles.section}>
           <div style={styles.sectionTitle}>الأيام المتوفرة</div>
           <div style={styles.monthNav}>
             <button className="pf-nav" onClick={() => setCurrent(new Date(year, month + 1, 1))}><ChevronRight size={16} /></button>
@@ -223,6 +192,37 @@ export default function PublicFarmDetail() {
                 </div>
               );
             })}
+          </div>
+        </div>
+
+        <div style={styles.section}>
+          <div style={styles.sectionTitle}>طرق الدفع</div>
+          <div style={styles.cliqRow}>
+            <div style={styles.cliqIcon}><Landmark size={18} color="#34345C" /></div>
+            <div style={{ flex: 1 }}>
+              <div style={styles.cliqAlias}>{CLIQ_ALIAS}</div>
+              <div style={styles.cliqBank}>كليك (CliQ) — {CLIQ_BANK}</div>
+            </div>
+            <button onClick={copyAlias} style={styles.copyBtn}>
+              {aliasCopied ? <Check size={14} /> : <Copy size={14} />}
+              {aliasCopied ? "نسخ!" : "نسخ"}
+            </button>
+          </div>
+        </div>
+
+        <div style={styles.section}>
+          <div style={styles.sectionTitle}>للتواصل والحجز</div>
+          <div style={styles.contactRow}>
+            <a
+              href={`https://wa.me/${CONTACT_PHONE}?text=${encodeURIComponent(`مرحبا، بدي أستفسر عن حجز ${farm.name}`)}`}
+              target="_blank" rel="noopener noreferrer"
+              style={{ ...styles.contactBtn, ...styles.whatsappBtn }}
+            >
+              <MessageCircle size={16} /> واتساب
+            </a>
+            <a href={`tel:+${CONTACT_PHONE}`} style={{ ...styles.contactBtn, ...styles.callBtn }}>
+              <Phone size={16} /> اتصال
+            </a>
           </div>
         </div>
       </div>
