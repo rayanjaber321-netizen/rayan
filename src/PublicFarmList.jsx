@@ -44,7 +44,7 @@ export default function PublicFarmList() {
           const photo = f.photos.find((p) => p.is_cover)?.url || f.photos[0]?.url;
           return (
             <Link key={f.id} to={`/farm/${f.id}`} style={styles.card}>
-              <div style={{ ...styles.cardImg, backgroundImage: photo ? `url(${photo})` : "none" }}>
+              <div style={{ ...styles.cardImg, backgroundImage: photo ? `url("${photo}")` : "none" }}>
                 {!photo && <div style={styles.cardImgPlaceholder}>لا توجد صورة</div>}
               </div>
               <div style={styles.cardBody}>
