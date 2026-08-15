@@ -18,6 +18,7 @@ export default function PublicFarmDetail() {
   const [prices, setPrices] = useState(defaultPriceSet());
   const [availability, setAvailability] = useState([]);
   const [lightboxIndex, setLightboxIndex] = useState(null);
+  const [descExpanded, setDescExpanded] = useState(false);
   const touchStartX = React.useRef(null);
 
   useEffect(() => {
@@ -119,7 +120,14 @@ export default function PublicFarmDetail() {
 
         <div style={styles.title}>{farm.name}</div>
         {farm.location && <div style={styles.location}><MapPin size={13} /> {farm.location}</div>}
-        {farm.description && <div style={styles.description}>{farm.description}</div>}
+        {farm.description && (
+          <div>
+            <div style={{ ...styles.description, ...(descExpanded ? {} : styles.descriptionClamped) }}>{farm.description}</div>
+            <button onClick={() => setDescExpanded((v) => !v)} style={styles.descToggle}>
+              {descExpanded ? "عرض أقل" : "قراءة المزيد"}
+            </button>
+          </div>
+        )}
 
         <div style={styles.section}>
           <div style={styles.sectionTitle}>الأسعار</div>
@@ -234,6 +242,8 @@ const styles = {
   title: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 22 },
   location: { fontSize: 13, color: "#6B6355", display: "flex", alignItems: "center", gap: 5, marginTop: 4 },
   description: { fontSize: 13, color: "#4A453A", lineHeight: 1.7, marginTop: 10, whiteSpace: "pre-wrap" },
+  descriptionClamped: { display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" },
+  descToggle: { border: "none", background: "none", padding: 0, marginTop: 6, fontSize: 12, fontWeight: 700, color: "#BC6C25", cursor: "pointer" },
   section: { background: "#F7F3E9", border: "1px solid #DAD3BE", borderRadius: 12, padding: 14, marginTop: 14 },
   sectionTitle: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 15, marginBottom: 8 },
   priceRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid #EFE9DA", fontSize: 12.5 },
