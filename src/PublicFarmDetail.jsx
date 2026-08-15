@@ -134,14 +134,12 @@ export default function PublicFarmDetail() {
         .pf-nav { cursor: pointer; border: none; background: #F7F3E9; border: 1px solid #C9C0A8; border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
       `}</style>
 
+      <button onClick={shareFarm} style={styles.shareBtn} aria-label="مشاركة">
+        {shared ? <Check size={16} /> : <Share2 size={16} />}
+      </button>
+
       <div style={styles.wrap}>
-        <div style={styles.topRow}>
-          <Link to="/" style={styles.backLink}><ArrowRight size={14} /> كل المزارع</Link>
-          <button onClick={shareFarm} style={styles.shareBtn}>
-            {shared ? <Check size={13} /> : <Share2 size={13} />}
-            {shared ? "تم نسخ الرابط" : "مشاركة"}
-          </button>
-        </div>
+        <Link to="/" style={styles.backLink}><ArrowRight size={14} /> كل المزارع</Link>
 
         {photos.length > 0 ? (
           <div style={styles.gallery}>
@@ -322,9 +320,8 @@ export default function PublicFarmDetail() {
 const styles = {
   page: { fontFamily: "'Tajawal', sans-serif", background: "#EAE4D6", color: "#23291F", minHeight: "100svh", padding: "20px 14px", boxSizing: "border-box" },
   wrap: { maxWidth: 480, margin: "0 auto" },
-  topRow: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
-  backLink: { display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "#6B6355", textDecoration: "none" },
-  shareBtn: { display: "inline-flex", alignItems: "center", gap: 6, border: "1px solid #C9C0A8", background: "#F7F3E9", borderRadius: 20, padding: "6px 14px", fontSize: 12, fontWeight: 700, color: "#4A453A", cursor: "pointer" },
+  backLink: { display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "#6B6355", textDecoration: "none", marginBottom: 12 },
+  shareBtn: { position: "fixed", top: 16, left: 16, zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", width: 38, height: 38, border: "1px solid #C9C0A8", background: "#F7F3E9", borderRadius: "50%", color: "#4A453A", cursor: "pointer" },
   gallery: { display: "flex", gap: 8, overflowX: "auto", marginBottom: 14, borderRadius: 12 },
   galleryImg: { height: 180, width: 260, objectFit: "cover", borderRadius: 12, flexShrink: 0, cursor: "pointer" },
   galleryPlaceholder: { height: 140, background: "#F1EEE3", border: "1px dashed #C9C0A8", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", color: "#6B6355", fontSize: 12, marginBottom: 14 },
