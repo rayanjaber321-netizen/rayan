@@ -8,7 +8,7 @@ const CLIQ_BANK = "البنك الإسلامي الأردني";
 import { supabase } from "./supabaseClient.js";
 import {
   ARABIC_MONTHS, WEEKDAYS, WEEKDAY_KEYS, DEFAULT_TIMES, farmTimes,
-  dateKey, fmtMoney, fmtTime12, toDateTime, priceForWeekday, extraGuestFeeFor, defaultPriceSet, buildMonthGrid, pad,
+  dateKey, fmtMoney, fmtTime12, toDateTime, priceForWeekday, extraGuestFeeFor, farmUsesGroupedPricing, defaultPriceSet, buildMonthGrid, pad,
 } from "./shared.js";
 import { useLang, t, MONTHS, WEEKDAYS_T, translateFarmName } from "./i18n.js";
 import { usePreventPinchZoom } from "./usePreventZoom.js";
@@ -222,15 +222,39 @@ export default function PublicFarmDetail() {
 
         <div style={styles.section}>
           <div style={styles.sectionTitle}>{t(lang, "prices")}</div>
-          {WEEKDAY_KEYS.map((k, i) => (
-            <div key={k} style={styles.priceRow}>
-              <span style={styles.priceLabel}>{WEEKDAYS_T[lang][i]}</span>
-              <span style={styles.priceValues}>
-                <span><Sun size={11} /> {fmtMoneyL(prices.day[k], lang)}</span>
-                <span><Moon size={11} /> {fmtMoneyL(prices.night[k], lang)}</span>
-              </span>
-            </div>
-          ))}
+          {farmUsesGroupedPricing(farm.name) ? (
+            <>
+              <div style={styles.priceRow}>
+                <span style={styles.priceLabel}>{t(lang, "sunWedGroup")}</span>
+                <span style={styles.priceValues}>
+                  <span><Sun size={11} /> {fmtMoneyL(prices.day.sun, lang)}</span>
+                  <span><Moon size={11} /> {fmtMoneyL(prices.night.sun, lang)}</span>
+                </span>
+              </div>
+              {[4, 5, 6].map((i) => {
+                const k = WEEKDAY_KEYS[i];
+                return (
+                  <div key={k} style={styles.priceRow}>
+                    <span style={styles.priceLabel}>{WEEKDAYS_T[lang][i]}</span>
+                    <span style={styles.priceValues}>
+                      <span><Sun size={11} /> {fmtMoneyL(prices.day[k], lang)}</span>
+                      <span><Moon size={11} /> {fmtMoneyL(prices.night[k], lang)}</span>
+                    </span>
+                  </div>
+                );
+              })}
+            </>
+          ) : (
+            WEEKDAY_KEYS.map((k, i) => (
+              <div key={k} style={styles.priceRow}>
+                <span style={styles.priceLabel}>{WEEKDAYS_T[lang][i]}</span>
+                <span style={styles.priceValues}>
+                  <span><Sun size={11} /> {fmtMoneyL(prices.day[k], lang)}</span>
+                  <span><Moon size={11} /> {fmtMoneyL(prices.night[k], lang)}</span>
+                </span>
+              </div>
+            ))
+          )}
           <div style={styles.guestNote}>{t(lang, "perPersonOver")(fmtMoneyL(prices.guestFee, lang), prices.guestLimit, prices.guestStep)}</div>
           {farm.maps_url && (
             <a href={farm.maps_url} target="_blank" rel="noopener noreferrer" style={styles.mapsLink}>

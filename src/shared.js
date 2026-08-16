@@ -44,6 +44,11 @@ export function addDays(dateStr, n) {
 export function priceForWeekday(prices, weekday, slot) {
   return prices[slot][WEEKDAY_KEYS[weekday]];
 }
+// هاي المزارع بتفضّل عرض سعر واحد للأحد-الأربعاء (بدل كل يوم لحاله) بكل مكان بالموقع.
+const GROUPED_PRICING_FARMS = ["نخل", "هيثم"];
+export function farmUsesGroupedPricing(farmName) {
+  return GROUPED_PRICING_FARMS.some((m) => (farmName || "").includes(m));
+}
 // Extra-guest fee charged in steps: every `guestStep` people over `guestLimit` add one `guestFee`.
 // guestStep defaults to 1, which reduces to a plain per-person fee (previous behavior).
 export function extraGuestFeeFor(prices, guestCount) {

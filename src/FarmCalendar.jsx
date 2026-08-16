@@ -4,7 +4,7 @@ import { supabase } from "./supabaseClient.js";
 import {
   ARABIC_MONTHS, WEEKDAYS, WEEKDAY_KEYS, DEFAULT_TIMES, farmTimes,
   pad, dateKey, fmtMoney, fmtTime12, fmtTime12Short, fmtDateShort, toDateTime, addDays,
-  priceForWeekday, extraGuestFeeFor, defaultPriceSet, buildMonthGrid,
+  priceForWeekday, extraGuestFeeFor, farmUsesGroupedPricing, defaultPriceSet, buildMonthGrid,
 } from "./shared.js";
 
 const PAYMENT_METHODS = [
@@ -17,11 +17,6 @@ const REFERRAL_FEE = 5;
 const NO_ALI_COMMISSION_FARMS = ["نخل", "هيثم"];
 function farmHasNoAliCommission(farmName) {
   return NO_ALI_COMMISSION_FARMS.some((m) => (farmName || "").includes(m));
-}
-// هاي المزارع بتفضّل تسعير مجمّع (أحد-أربعاء سعر واحد، خميس/جمعة/سبت كل واحد لحاله) بدل تسعير كل يوم لحاله.
-const GROUPED_PRICING_FARMS = ["نخل", "هيثم"];
-function farmUsesGroupedPricing(farmName) {
-  return GROUPED_PRICING_FARMS.some((m) => (farmName || "").includes(m));
 }
 
 function bookingFinal(b) {
