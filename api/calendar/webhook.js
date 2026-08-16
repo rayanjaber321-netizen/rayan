@@ -30,16 +30,20 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Google requires a fast response; do the actual sync after acknowledging.
-  res.status(200).end();
+  if (resourceState === "sync") {
+    res.status(200).end(); // initial handshake right after watch creation, no changes yet
+    return;
+  }
 
-  if (resourceState === "sync") return; // initial handshake right after watch creation, no changes yet
-
+  // Awaited fully before responding — a Vercel serverless function's invocation
+  // can freeze right after res.end() is sent, so "fire and forget" work queued
+  // after the response is not guaranteed to run.
   try {
     await syncFarmCalendar(db, conn);
   } catch (e) {
     console.error("Calendar webhook sync error:", e);
   }
+  res.status(200).end();
 }
 
 async function syncFarmCalendar(db, conn) {
