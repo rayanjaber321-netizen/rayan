@@ -52,8 +52,8 @@ export default async function handler(req, res) {
       const requestBody = {
         summary: event.title,
         description: event.description || "",
-        start: { dateTime: event.startDateTime },
-        end: { dateTime: event.endDateTime },
+        start: { dateTime: event.startDateTime, timeZone: "Asia/Amman" },
+        end: { dateTime: event.endDateTime, timeZone: "Asia/Amman" },
         extendedProperties: { private: { farmsJoSlotKey: event.slotKey || "" } },
       };
 
