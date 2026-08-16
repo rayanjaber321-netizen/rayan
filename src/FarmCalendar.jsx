@@ -187,7 +187,7 @@ export default function FarmCalendar() {
         photosById[row.farm_id].push({ id: row.id, url: row.url, isCover: !!row.is_cover, mediaType: row.media_type || "photo" });
       });
       const commissionById = {};
-      (commissionRes.data || []).forEach((row) => { commissionById[row.farm_id] = { rayanFee: row.rayan_fee ?? REFERRAL_FEE }; });
+      (commissionRes.data || []).forEach((row) => { commissionById[row.farm_id] = { aliFee: row.ali_fee ?? REFERRAL_FEE, rayanFee: row.rayan_fee ?? REFERRAL_FEE }; });
 
       setFarms(loadedFarms);
       setPrices(pricesById);
@@ -303,6 +303,7 @@ export default function FarmCalendar() {
   const totalExpenses = curFinances.expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
   const totalSalaries = curFinances.salaries.reduce((s, e) => s + Number(e.amount || 0), 0);
 
+  const aliFee = commissionSettings[selectedFarmId]?.aliFee ?? REFERRAL_FEE;
   const rayanFee = commissionSettings[selectedFarmId]?.rayanFee ?? REFERRAL_FEE;
 
   const { aliEligibleCount, rayanEligibleCount } = useMemo(() => {
@@ -316,7 +317,7 @@ export default function FarmCalendar() {
     return { aliEligibleCount: ali, rayanEligibleCount: rayan };
   }, [farmBookings, year, month]);
   const referralCommissions = [
-    { label: "راتب علي", count: aliEligibleCount, fee: REFERRAL_FEE, amount: aliEligibleCount * REFERRAL_FEE },
+    { label: "راتب علي", count: aliEligibleCount, fee: aliFee, amount: aliEligibleCount * aliFee },
     { label: "راتب ريان", count: rayanEligibleCount, fee: rayanFee, amount: rayanEligibleCount * rayanFee },
   ];
   const totalCommissions = referralCommissions.reduce((s, r) => s + r.amount, 0);
@@ -461,7 +462,7 @@ export default function FarmCalendar() {
   function openPricingTab(farmId) {
     setSettingsTab("pricing");
     setPricingFarmId(farmId);
-    setDraftPrices({ ...defaultPriceSet(), rayanFee: REFERRAL_FEE, ...(prices[farmId] || {}), ...(commissionSettings[farmId] || {}) });
+    setDraftPrices({ ...defaultPriceSet(), aliFee: REFERRAL_FEE, rayanFee: REFERRAL_FEE, ...(prices[farmId] || {}), ...(commissionSettings[farmId] || {}) });
     setSettingsOpen(true);
   }
 
@@ -511,14 +512,16 @@ export default function FarmCalendar() {
       nightStart: draftPrices.nightStart || DEFAULT_TIMES.night.start,
       nightEnd: draftPrices.nightEnd || DEFAULT_TIMES.night.end,
     };
-    const rayanFee = Number(draftPrices.rayanFee) || REFERRAL_FEE;
+    // Number.isNaN check (not ||) so a deliberate 0 — meaning "no commission for this farm" — isn't overwritten by the default.
+    const aliFee = Number.isNaN(Number(draftPrices.aliFee)) ? REFERRAL_FEE : Number(draftPrices.aliFee);
+    const rayanFee = Number.isNaN(Number(draftPrices.rayanFee)) ? REFERRAL_FEE : Number(draftPrices.rayanFee);
     setPrices((prev) => ({ ...prev, [pricingFarmId]: clean }));
-    setCommissionSettings((prev) => ({ ...prev, [pricingFarmId]: { rayanFee } }));
+    setCommissionSettings((prev) => ({ ...prev, [pricingFarmId]: { aliFee, rayanFee } }));
     setSettingsOpen(false);
     const { error } = await supabase.from("farm_prices").upsert(priceAppToRow(pricingFarmId, clean), { onConflict: "farm_id" });
     if (error) { console.error(error); alert("صار خطأ بحفظ الأسعار"); }
-    const { error: commErr } = await supabase.from("farm_commission_settings").upsert({ farm_id: pricingFarmId, rayan_fee: rayanFee }, { onConflict: "farm_id" });
-    if (commErr) { console.error(commErr); alert("صار خطأ بحفظ عمولة ريان"); }
+    const { error: commErr } = await supabase.from("farm_commission_settings").upsert({ farm_id: pricingFarmId, ali_fee: aliFee, rayan_fee: rayanFee }, { onConflict: "farm_id" });
+    if (commErr) { console.error(commErr); alert("صار خطأ بحفظ العمولات"); }
   }
 
   async function uploadPhoto(farmId, file) {
@@ -853,7 +856,7 @@ export default function FarmCalendar() {
 
             <div style={styles.tabRow}>
               <button className="fc-btn" onClick={() => setSettingsTab("farms")} style={{ ...styles.tabBtn, ...(settingsTab === "farms" ? styles.tabBtnActive : {}) }}>المزارع</button>
-              <button className="fc-btn" onClick={() => { setSettingsTab("pricing"); setPricingFarmId(selectedFarmId); setDraftPrices({ ...defaultPriceSet(), rayanFee: REFERRAL_FEE, ...(prices[selectedFarmId] || {}), ...(commissionSettings[selectedFarmId] || {}) }); }} style={{ ...styles.tabBtn, ...(settingsTab === "pricing" ? styles.tabBtnActive : {}) }}>الأسعار</button>
+              <button className="fc-btn" onClick={() => { setSettingsTab("pricing"); setPricingFarmId(selectedFarmId); setDraftPrices({ ...defaultPriceSet(), aliFee: REFERRAL_FEE, rayanFee: REFERRAL_FEE, ...(prices[selectedFarmId] || {}), ...(commissionSettings[selectedFarmId] || {}) }); }} style={{ ...styles.tabBtn, ...(settingsTab === "pricing" ? styles.tabBtnActive : {}) }}>الأسعار</button>
               <button className="fc-btn" onClick={() => { setSettingsTab("photos"); setPricingFarmId(selectedFarmId); }} style={{ ...styles.tabBtn, ...(settingsTab === "photos" ? styles.tabBtnActive : {}) }}>الصور</button>
               <button className="fc-btn" onClick={() => setSettingsTab("account")} style={{ ...styles.tabBtn, ...(settingsTab === "account" ? styles.tabBtnActive : {}) }}>الحساب</button>
             </div>
@@ -907,7 +910,7 @@ export default function FarmCalendar() {
             {settingsTab === "pricing" && (
               <div style={styles.formGrid}>
                 <label style={styles.label}>المزرعة</label>
-                <select className="fc-select" style={styles.input} value={pricingFarmId} onChange={(e) => { setPricingFarmId(e.target.value); setDraftPrices({ ...defaultPriceSet(), rayanFee: REFERRAL_FEE, ...(prices[e.target.value] || {}), ...(commissionSettings[e.target.value] || {}) }); }}>
+                <select className="fc-select" style={styles.input} value={pricingFarmId} onChange={(e) => { setPricingFarmId(e.target.value); setDraftPrices({ ...defaultPriceSet(), aliFee: REFERRAL_FEE, rayanFee: REFERRAL_FEE, ...(prices[e.target.value] || {}), ...(commissionSettings[e.target.value] || {}) }); }}>
                   {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
                 {WEEKDAY_KEYS.map((k, i) => (
@@ -969,9 +972,18 @@ export default function FarmCalendar() {
                 </div>
 
                 <div style={styles.priceGroupBlock}>
-                  <div style={styles.priceGroupLabel}>عمولة ريان لهاي المزرعة</div>
-                  <label style={styles.label}>عمولة ريان لكل حجز (د.أ) — علي دايماً {fmtMoney(REFERRAL_FEE)}</label>
-                  <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.rayanFee} onChange={(e) => setDraftPrices({ ...draftPrices, rayanFee: e.target.value })} />
+                  <div style={styles.priceGroupLabel}>عمولة علي وريان لهاي المزرعة</div>
+                  <div style={styles.twoCol}>
+                    <div style={{ flex: 1 }}>
+                      <label style={styles.label}>عمولة علي لكل حجز (د.أ)</label>
+                      <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.aliFee} onChange={(e) => setDraftPrices({ ...draftPrices, aliFee: e.target.value })} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={styles.label}>عمولة ريان لكل حجز (د.أ)</label>
+                      <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.rayanFee} onChange={(e) => setDraftPrices({ ...draftPrices, rayanFee: e.target.value })} />
+                    </div>
+                  </div>
+                  <div style={styles.photoNote}>حط 0 عشان تلغي عمولة أي واحد فيهم لهاي المزرعة تحديداً</div>
                 </div>
 
                 <button className="fc-btn" onClick={savePricing} style={{ ...styles.saveBtn, marginTop: 6, marginRight: 0 }}>حفظ الأسعار</button>
