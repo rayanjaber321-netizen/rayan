@@ -44,11 +44,18 @@ export function addDays(dateStr, n) {
 export function priceForWeekday(prices, weekday, slot) {
   return prices[slot][WEEKDAY_KEYS[weekday]];
 }
+// Extra-guest fee charged in steps: every `guestStep` people over `guestLimit` add one `guestFee`.
+// guestStep defaults to 1, which reduces to a plain per-person fee (previous behavior).
+export function extraGuestFeeFor(prices, guestCount) {
+  const extra = Math.max(0, Number(guestCount || 0) - Number(prices.guestLimit || 0));
+  const step = Number(prices.guestStep) || 1;
+  return Math.ceil(extra / step) * Number(prices.guestFee || 0);
+}
 export function defaultPriceSet() {
   return {
     day: { sun: 100, mon: 100, tue: 100, wed: 100, thu: 130, fri: 160, sat: 130 },
     night: { sun: 150, mon: 150, tue: 150, wed: 150, thu: 180, fri: 220, sat: 180 },
-    guestLimit: 15, guestFee: 5,
+    guestLimit: 15, guestFee: 5, guestStep: 1,
     dayStart: "10:00", dayEnd: "21:00", nightStart: "22:00", nightEnd: "08:00",
   };
 }

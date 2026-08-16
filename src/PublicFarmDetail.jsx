@@ -8,7 +8,7 @@ const CLIQ_BANK = "البنك الإسلامي الأردني";
 import { supabase } from "./supabaseClient.js";
 import {
   ARABIC_MONTHS, WEEKDAYS, WEEKDAY_KEYS, DEFAULT_TIMES, farmTimes,
-  dateKey, fmtMoney, fmtTime12, toDateTime, priceForWeekday, defaultPriceSet, buildMonthGrid, pad,
+  dateKey, fmtMoney, fmtTime12, toDateTime, priceForWeekday, extraGuestFeeFor, defaultPriceSet, buildMonthGrid, pad,
 } from "./shared.js";
 import { useLang, t, MONTHS, WEEKDAYS_T, translateFarmName } from "./i18n.js";
 
@@ -60,6 +60,7 @@ export default function PublicFarmDetail() {
           day, night,
           guestLimit: pricesRes.data.guest_limit,
           guestFee: pricesRes.data.guest_fee,
+          guestStep: pricesRes.data.guest_step || 1,
           dayStart: pricesRes.data.day_start || DEFAULT_TIMES.day.start,
           dayEnd: pricesRes.data.day_end || DEFAULT_TIMES.day.end,
           nightStart: pricesRes.data.night_start || DEFAULT_TIMES.night.start,
@@ -113,7 +114,7 @@ export default function PublicFarmDetail() {
     const base = priceFor(selectedDay, bookingSlot);
     const guests = Number(bookingForm.guests) || 0;
     const extraGuests = Math.max(0, guests - prices.guestLimit);
-    const extraFee = extraGuests * prices.guestFee;
+    const extraFee = extraGuestFeeFor(prices, guests);
     return { base, extraGuests, extraFee, total: base + extraFee };
   }
 
@@ -228,7 +229,7 @@ export default function PublicFarmDetail() {
               </span>
             </div>
           ))}
-          <div style={styles.guestNote}>{t(lang, "perPersonOver")(fmtMoneyL(prices.guestFee, lang), prices.guestLimit)}</div>
+          <div style={styles.guestNote}>{t(lang, "perPersonOver")(fmtMoneyL(prices.guestFee, lang), prices.guestLimit, prices.guestStep)}</div>
           {farm.maps_url && (
             <a href={farm.maps_url} target="_blank" rel="noopener noreferrer" style={styles.mapsLink}>
               <MapPin size={13} /> {t(lang, "openMap")}

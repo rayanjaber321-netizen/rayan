@@ -4,7 +4,7 @@ import { supabase } from "./supabaseClient.js";
 import {
   ARABIC_MONTHS, WEEKDAYS, WEEKDAY_KEYS, DEFAULT_TIMES, farmTimes,
   pad, dateKey, fmtMoney, fmtTime12, fmtTime12Short, fmtDateShort, toDateTime, addDays,
-  priceForWeekday, defaultPriceSet, buildMonthGrid,
+  priceForWeekday, extraGuestFeeFor, defaultPriceSet, buildMonthGrid,
 } from "./shared.js";
 
 const PAYMENT_METHODS = [
@@ -30,6 +30,7 @@ function priceRowToApp(row) {
     day, night,
     guestLimit: row.guest_limit,
     guestFee: row.guest_fee,
+    guestStep: row.guest_step || 1,
     dayStart: row.day_start || DEFAULT_TIMES.day.start,
     dayEnd: row.day_end || DEFAULT_TIMES.day.end,
     nightStart: row.night_start || DEFAULT_TIMES.night.start,
@@ -45,7 +46,7 @@ function priceAppToRow(farmId, p) {
   return {
     farm_id: farmId,
     ...dayNightCols,
-    guest_limit: Number(p.guestLimit) || 0, guest_fee: Number(p.guestFee) || 0,
+    guest_limit: Number(p.guestLimit) || 0, guest_fee: Number(p.guestFee) || 0, guest_step: Number(p.guestStep) || 1,
     day_start: p.dayStart || DEFAULT_TIMES.day.start, day_end: p.dayEnd || DEFAULT_TIMES.day.end,
     night_start: p.nightStart || DEFAULT_TIMES.night.start, night_end: p.nightEnd || DEFAULT_TIMES.night.end,
   };
@@ -493,6 +494,7 @@ export default function FarmCalendar() {
       day, night,
       guestLimit: Number(draftPrices.guestLimit) || 0,
       guestFee: Number(draftPrices.guestFee) || 0,
+      guestStep: Number(draftPrices.guestStep) || 1,
       dayStart: draftPrices.dayStart || DEFAULT_TIMES.day.start,
       dayEnd: draftPrices.dayEnd || DEFAULT_TIMES.day.end,
       nightStart: draftPrices.nightStart || DEFAULT_TIMES.night.start,
@@ -755,8 +757,7 @@ export default function FarmCalendar() {
                 value={form.guestCount}
                 onChange={(e) => {
                   const guestCount = e.target.value;
-                  const extra = Math.max(0, Number(guestCount || 0) - farmPrices.guestLimit) * farmPrices.guestFee;
-                  setForm({ ...form, guestCount, extraGuestFee: extra });
+                  setForm({ ...form, guestCount, extraGuestFee: extraGuestFeeFor(farmPrices, guestCount) });
                 }}
                 placeholder={`حتى ${farmPrices.guestLimit} بدون رسوم إضافية`}
               />
@@ -913,9 +914,13 @@ export default function FarmCalendar() {
                       <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.guestLimit} onChange={(e) => setDraftPrices({ ...draftPrices, guestLimit: e.target.value })} />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <label style={styles.label}>رسوم كل شخص إضافي (د.أ)</label>
-                      <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.guestFee} onChange={(e) => setDraftPrices({ ...draftPrices, guestFee: e.target.value })} />
+                      <label style={styles.label}>كل كم شخص إضافي</label>
+                      <input className="fc-input fc-num" type="number" min="1" style={styles.input} value={draftPrices.guestStep} onChange={(e) => setDraftPrices({ ...draftPrices, guestStep: e.target.value })} />
                     </div>
+                  </div>
+                  <div style={{ marginTop: 8 }}>
+                    <label style={styles.label}>رسوم كل {draftPrices.guestStep > 1 ? `${draftPrices.guestStep} أشخاص` : "شخص"} إضافي (د.أ)</label>
+                    <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.guestFee} onChange={(e) => setDraftPrices({ ...draftPrices, guestFee: e.target.value })} />
                   </div>
                 </div>
 
