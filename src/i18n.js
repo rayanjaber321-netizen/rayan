@@ -19,6 +19,7 @@ const FARM_NAME_EN = [
   { match: "سراء", en: "Al Israa Farm" },
   { match: "نخل", en: "Nakhla Farm" },
   { match: "نخيل", en: "Nakhla Farm" },
+  { match: "هيثم", en: "Al Haitham Farm" },
 ];
 
 export function translateFarmName(name, lang) {
