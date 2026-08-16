@@ -49,6 +49,7 @@ function bookingRowToApp(row) {
     remainingMethod: row.remaining_method || "نقدي", remainingSettled: !!row.remaining_settled,
     excludeCommission: !!row.exclude_commission, notes: row.notes || "",
     googleEventId: row.google_event_id || null,
+    source: row.source || "app",
   };
 }
 function bookingAppToRow(farmId, slotKey, b) {
@@ -671,6 +672,11 @@ export default function FarmCalendar() {
               <button className="fc-btn" onClick={closeModal} style={styles.iconBtn} aria-label="إغلاق"><X size={18} color="#6B6355" /></button>
             </div>
             <div style={styles.modalSub}>{timeRangeLabel}</div>
+            {form.source === "google" && (
+              <div style={styles.googleSourceNote}>
+                <CalendarDays size={12} /> مضاف تلقائياً من قوقل كالندر — عدّل وحفظ لو بدك تربطه بحجز حقيقي
+              </div>
+            )}
 
             <div style={styles.formGrid}>
               <div style={styles.twoCol}>
@@ -1080,6 +1086,7 @@ const styles = {
   iconBtn: { background: "transparent", padding: 4 },
   iconBtnSmall: { background: "transparent", padding: 4, display: "flex" },
   modalSub: { fontSize: 11, color: "#6B6355", marginBottom: 14 },
+  googleSourceNote: { display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#4A5A8C", background: "#EDECF6", border: "1px solid #C9C7DE", borderRadius: 8, padding: "6px 10px", marginBottom: 12 },
   formGrid: { display: "flex", flexDirection: "column", gap: 6 },
   label: { fontSize: 12, color: "#4A453A", display: "flex", alignItems: "center", gap: 5, marginTop: 6 },
   input: { width: "100%", boxSizing: "border-box", padding: "8px 10px", borderRadius: 8, border: "1px solid #C9C0A8", background: "#FFFFFF", color: "#23291F", fontSize: 13, fontFamily: "'Tajawal', sans-serif" },
