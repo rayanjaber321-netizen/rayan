@@ -67,8 +67,11 @@ export default function PublicFarmList() {
         <div style={styles.brandRow}>
           <div style={styles.logoGlow} />
           <div style={styles.logoRing}>
-            <img src="/icons/icon-192.png" alt="" style={styles.logo} />
-            <div style={styles.logoBadge}>Farms Jo</div>
+            <div style={styles.logoClip}>
+              <img src="/icons/icon-192.png" alt="" style={styles.logo} />
+              <div style={styles.logoScrim} />
+              <div style={styles.logoBadge}>Farms Jo</div>
+            </div>
           </div>
         </div>
         <div style={styles.subtitle}>{t(lang, "subtitle")}</div>
@@ -142,24 +145,23 @@ const styles = {
     background: "linear-gradient(135deg, #E3A34E, #BC6C25)",
     boxShadow: "0 18px 34px -12px rgba(35,41,31,0.45)",
   },
-  logo: { display: "block", width: 84, height: 84, borderRadius: 22, border: "2px solid #F8F3E7" },
+  logoClip: { position: "relative", width: 92, height: 92, borderRadius: 22, overflow: "hidden", border: "2px solid #F8F3E7" },
+  logo: { position: "absolute", inset: 0, display: "block", width: "100%", height: "100%", objectFit: "cover" },
+  logoScrim: { position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(10,12,6,0) 45%, rgba(8,10,5,0.78) 100%)" },
   logoBadge: {
     position: "absolute",
-    top: -18,
-    left: "50%",
-    transform: "translateX(-50%)",
+    left: 0,
+    right: 0,
+    bottom: 8,
+    textAlign: "center",
     whiteSpace: "nowrap",
     fontFamily: "'Playfair Display', serif",
     fontStyle: "italic",
     fontWeight: 600,
-    fontSize: 16,
-    color: "#1A2014",
-    background: "#FAF6EC",
-    border: "1px solid rgba(188,108,37,0.4)",
-    borderRadius: 999,
-    padding: "5px 16px",
-    boxShadow: "0 10px 20px -8px rgba(35,29,16,0.4)",
+    fontSize: 13.5,
+    color: "#FFFFFF",
     letterSpacing: "0.2px",
+    textShadow: "0 2px 6px rgba(0,0,0,0.4)",
   },
   subtitle: { fontSize: 14, color: "#6B6355", marginTop: 4, fontWeight: 500, letterSpacing: "0.1px" },
   shareBtn: {
