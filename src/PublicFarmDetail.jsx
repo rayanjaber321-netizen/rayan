@@ -7,10 +7,10 @@ const CLIQ_ALIAS = "A24JAB";
 const CLIQ_BANK = "البنك الإسلامي الأردني";
 import { supabase } from "./supabaseClient.js";
 import {
-  ARABIC_MONTHS, WEEKDAYS, PRICE_GROUPS, DEFAULT_TIMES, farmTimes,
-  dateKey, fmtMoney, fmtTime12, toDateTime, groupForWeekday, defaultPriceSet, buildMonthGrid, pad,
+  ARABIC_MONTHS, WEEKDAYS, WEEKDAY_KEYS, DEFAULT_TIMES, farmTimes,
+  dateKey, fmtMoney, fmtTime12, toDateTime, priceForWeekday, defaultPriceSet, buildMonthGrid, pad,
 } from "./shared.js";
-import { useLang, t, MONTHS, WEEKDAYS_T, PRICE_GROUP_LABELS, translateFarmName } from "./i18n.js";
+import { useLang, t, MONTHS, WEEKDAYS_T, translateFarmName } from "./i18n.js";
 
 function fmtMoneyL(n, lang) {
   const num = (Math.round(n * 100) / 100).toLocaleString("en-US");
@@ -54,9 +54,10 @@ export default function PublicFarmDetail() {
       setFarm(farmRes.data || null);
       setPhotos(photosRes.data || []);
       if (pricesRes.data) {
+        const day = {}, night = {};
+        WEEKDAY_KEYS.forEach((k) => { day[k] = pricesRes.data[`day_${k}`]; night[k] = pricesRes.data[`night_${k}`]; });
         setPrices({
-          day: { A: pricesRes.data.day_a, B: pricesRes.data.day_b, C: pricesRes.data.day_c },
-          night: { A: pricesRes.data.night_a, B: pricesRes.data.night_b, C: pricesRes.data.night_c },
+          day, night,
           guestLimit: pricesRes.data.guest_limit,
           guestFee: pricesRes.data.guest_fee,
           dayStart: pricesRes.data.day_start || DEFAULT_TIMES.day.start,
@@ -96,8 +97,7 @@ export default function PublicFarmDetail() {
 
   function priceFor(day, slot) {
     const weekday = new Date(year, month, day).getDay();
-    const group = groupForWeekday(weekday);
-    return prices[slot][group];
+    return priceForWeekday(prices, weekday, slot);
   }
 
   function copyAlias() {
@@ -212,12 +212,12 @@ export default function PublicFarmDetail() {
 
         <div style={styles.section}>
           <div style={styles.sectionTitle}>{t(lang, "prices")}</div>
-          {PRICE_GROUPS.map((g) => (
-            <div key={g.key} style={styles.priceRow}>
-              <span style={styles.priceLabel}>{PRICE_GROUP_LABELS[lang][g.key]}</span>
+          {WEEKDAY_KEYS.map((k, i) => (
+            <div key={k} style={styles.priceRow}>
+              <span style={styles.priceLabel}>{WEEKDAYS_T[lang][i]}</span>
               <span style={styles.priceValues}>
-                <span><Sun size={11} /> {fmtMoneyL(prices.day[g.key], lang)}</span>
-                <span><Moon size={11} /> {fmtMoneyL(prices.night[g.key], lang)}</span>
+                <span><Sun size={11} /> {fmtMoneyL(prices.day[k], lang)}</span>
+                <span><Moon size={11} /> {fmtMoneyL(prices.night[k], lang)}</span>
               </span>
             </div>
           ))}

@@ -1,10 +1,6 @@
 export const ARABIC_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 export const WEEKDAYS = ["أحد","اثنين","ثلاثاء","أربعاء","خميس","جمعة","سبت"];
-export const PRICE_GROUPS = [
-  { key: "A", label: "الأحد – الأربعاء" },
-  { key: "B", label: "الخميس والسبت" },
-  { key: "C", label: "الجمعة" },
-];
+export const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 export const DEFAULT_TIMES = {
   day: { start: "10:00", end: "21:00" },
   night: { start: "22:00", end: "08:00" },
@@ -45,14 +41,14 @@ export function addDays(dateStr, n) {
   const dt = new Date(y, m - 1, d + n);
   return dateKey(dt.getFullYear(), dt.getMonth(), dt.getDate());
 }
-export function groupForWeekday(weekday) {
-  if (weekday === 5) return "C";
-  if (weekday === 4 || weekday === 6) return "B";
-  return "A";
+export function priceForWeekday(prices, weekday, slot) {
+  return prices[slot][WEEKDAY_KEYS[weekday]];
 }
 export function defaultPriceSet() {
   return {
-    day: { A: 100, B: 130, C: 160 }, night: { A: 150, B: 180, C: 220 }, guestLimit: 15, guestFee: 5,
+    day: { sun: 100, mon: 100, tue: 100, wed: 100, thu: 130, fri: 160, sat: 130 },
+    night: { sun: 150, mon: 150, tue: 150, wed: 150, thu: 180, fri: 220, sat: 180 },
+    guestLimit: 15, guestFee: 5,
     dayStart: "10:00", dayEnd: "21:00", nightStart: "22:00", nightEnd: "08:00",
   };
 }

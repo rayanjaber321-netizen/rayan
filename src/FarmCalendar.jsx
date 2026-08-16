@@ -2,9 +2,9 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Sun, Moon, X, Settings, ChevronRight, ChevronLeft, Banknote, CreditCard, Landmark, Trash2, User, Phone, StickyNote, Plus, MapPin, Pencil, RefreshCw, Wallet, LogOut, Star, CalendarDays, Link2, Unlink } from "lucide-react";
 import { supabase } from "./supabaseClient.js";
 import {
-  ARABIC_MONTHS, WEEKDAYS, PRICE_GROUPS, DEFAULT_TIMES, farmTimes,
+  ARABIC_MONTHS, WEEKDAYS, WEEKDAY_KEYS, DEFAULT_TIMES, farmTimes,
   pad, dateKey, fmtMoney, fmtTime12, fmtTime12Short, fmtDateShort, toDateTime, addDays,
-  groupForWeekday, defaultPriceSet, buildMonthGrid,
+  priceForWeekday, defaultPriceSet, buildMonthGrid,
 } from "./shared.js";
 
 const PAYMENT_METHODS = [
@@ -24,9 +24,10 @@ function isBookingSettled(b) {
 }
 
 function priceRowToApp(row) {
+  const day = {}, night = {};
+  WEEKDAY_KEYS.forEach((k) => { day[k] = row[`day_${k}`]; night[k] = row[`night_${k}`]; });
   return {
-    day: { A: row.day_a, B: row.day_b, C: row.day_c },
-    night: { A: row.night_a, B: row.night_b, C: row.night_c },
+    day, night,
     guestLimit: row.guest_limit,
     guestFee: row.guest_fee,
     dayStart: row.day_start || DEFAULT_TIMES.day.start,
@@ -36,10 +37,14 @@ function priceRowToApp(row) {
   };
 }
 function priceAppToRow(farmId, p) {
+  const dayNightCols = {};
+  WEEKDAY_KEYS.forEach((k) => {
+    dayNightCols[`day_${k}`] = Number(p.day[k]) || 0;
+    dayNightCols[`night_${k}`] = Number(p.night[k]) || 0;
+  });
   return {
     farm_id: farmId,
-    day_a: Number(p.day.A) || 0, day_b: Number(p.day.B) || 0, day_c: Number(p.day.C) || 0,
-    night_a: Number(p.night.A) || 0, night_b: Number(p.night.B) || 0, night_c: Number(p.night.C) || 0,
+    ...dayNightCols,
     guest_limit: Number(p.guestLimit) || 0, guest_fee: Number(p.guestFee) || 0,
     day_start: p.dayStart || DEFAULT_TIMES.day.start, day_end: p.dayEnd || DEFAULT_TIMES.day.end,
     night_start: p.nightStart || DEFAULT_TIMES.night.start, night_end: p.nightEnd || DEFAULT_TIMES.night.end,
@@ -308,8 +313,7 @@ export default function FarmCalendar() {
 
   function priceFor(day, slot) {
     const weekday = new Date(year, month, day).getDay();
-    const group = groupForWeekday(weekday);
-    return farmPrices[slot][group];
+    return priceForWeekday(farmPrices, weekday, slot);
   }
 
   function findOccupyingBooking(dateStr, slot) {
@@ -483,9 +487,10 @@ export default function FarmCalendar() {
     if (error) console.error(error);
   }
   async function savePricing() {
+    const day = {}, night = {};
+    WEEKDAY_KEYS.forEach((k) => { day[k] = Number(draftPrices.day[k]) || 0; night[k] = Number(draftPrices.night[k]) || 0; });
     const clean = {
-      day: { A: Number(draftPrices.day.A) || 0, B: Number(draftPrices.day.B) || 0, C: Number(draftPrices.day.C) || 0 },
-      night: { A: Number(draftPrices.night.A) || 0, B: Number(draftPrices.night.B) || 0, C: Number(draftPrices.night.C) || 0 },
+      day, night,
       guestLimit: Number(draftPrices.guestLimit) || 0,
       guestFee: Number(draftPrices.guestFee) || 0,
       dayStart: draftPrices.dayStart || DEFAULT_TIMES.day.start,
@@ -883,17 +888,17 @@ export default function FarmCalendar() {
                 <select className="fc-select" style={styles.input} value={pricingFarmId} onChange={(e) => { setPricingFarmId(e.target.value); setDraftPrices({ ...defaultPriceSet(), ...(prices[e.target.value] || {}) }); }}>
                   {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
-                {PRICE_GROUPS.map((g) => (
-                  <div key={g.key} style={styles.priceGroupBlock}>
-                    <div style={styles.priceGroupLabel}>{g.label}</div>
+                {WEEKDAY_KEYS.map((k, i) => (
+                  <div key={k} style={styles.priceGroupBlock}>
+                    <div style={styles.priceGroupLabel}>يوم {WEEKDAYS[i]}</div>
                     <div style={styles.twoCol}>
                       <div style={{ flex: 1 }}>
                         <label style={styles.label}><Sun size={12} /> نهاري</label>
-                        <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.day[g.key]} onChange={(e) => setDraftPrices({ ...draftPrices, day: { ...draftPrices.day, [g.key]: e.target.value } })} />
+                        <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.day[k]} onChange={(e) => setDraftPrices({ ...draftPrices, day: { ...draftPrices.day, [k]: e.target.value } })} />
                       </div>
                       <div style={{ flex: 1 }}>
                         <label style={styles.label}><Moon size={12} /> سهرة</label>
-                        <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.night[g.key]} onChange={(e) => setDraftPrices({ ...draftPrices, night: { ...draftPrices.night, [g.key]: e.target.value } })} />
+                        <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.night[k]} onChange={(e) => setDraftPrices({ ...draftPrices, night: { ...draftPrices.night, [k]: e.target.value } })} />
                       </div>
                     </div>
                   </div>

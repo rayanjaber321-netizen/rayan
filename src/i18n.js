@@ -35,11 +35,6 @@ export const WEEKDAYS_T = {
   en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
 };
 
-export const PRICE_GROUP_LABELS = {
-  ar: { A: "الأحد – الأربعاء", B: "الخميس والسبت", C: "الجمعة" },
-  en: { A: "Sun – Wed", B: "Thu & Sat", C: "Friday" },
-};
-
 const translations = {
   ar: {
     subtitle: "اختر مزرعة لتشوف الأسعار والأيام المتوفرة",
