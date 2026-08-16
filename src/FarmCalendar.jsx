@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { Sun, Moon, X, Settings, ChevronRight, ChevronLeft, Banknote, CreditCard, Landmark, Trash2, User, Phone, StickyNote, Plus, MapPin, Pencil, RefreshCw, Wallet, LogOut, Star } from "lucide-react";
+import { Sun, Moon, X, Settings, ChevronRight, ChevronLeft, Banknote, CreditCard, Landmark, Trash2, User, Phone, StickyNote, Plus, MapPin, Pencil, RefreshCw, Wallet, LogOut, Star, CalendarDays, Link2, Unlink } from "lucide-react";
 import { supabase } from "./supabaseClient.js";
 import {
   ARABIC_MONTHS, WEEKDAYS, PRICE_GROUPS, DEFAULT_TIMES,
@@ -48,6 +48,7 @@ function bookingRowToApp(row) {
     depositAmount: row.deposit_amount || 0, depositMethod: row.deposit_method || "نقدي",
     remainingMethod: row.remaining_method || "نقدي", remainingSettled: !!row.remaining_settled,
     excludeCommission: !!row.exclude_commission, notes: row.notes || "",
+    googleEventId: row.google_event_id || null,
   };
 }
 function bookingAppToRow(farmId, slotKey, b) {
@@ -60,7 +61,48 @@ function bookingAppToRow(farmId, slotKey, b) {
     deposit_amount: Number(b.depositAmount) || 0, deposit_method: b.depositMethod,
     remaining_method: b.remainingMethod, remaining_settled: !!b.remainingSettled,
     exclude_commission: !!b.excludeCommission, notes: b.notes || "",
+    google_event_id: b.googleEventId || null,
   };
+}
+
+async function syncBookingToCalendar(farmId, slotKey, farmName, booking) {
+  try {
+    const res = await fetch("/api/calendar/sync-booking", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        farmId,
+        googleEventId: booking.googleEventId || null,
+        action: "upsert",
+        event: {
+          slotKey,
+          title: `حجز: ${booking.customer} — ${farmName}`,
+          description: [booking.phone && `الهاتف: ${booking.phone}`, booking.notes].filter(Boolean).join("\n"),
+          startDateTime: `${booking.startDate}T${booking.startTime}:00`,
+          endDateTime: `${booking.endDate}T${booking.endTime}:00`,
+        },
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.googleEventId || null;
+  } catch (e) {
+    console.error("Calendar sync failed:", e);
+    return null;
+  }
+}
+
+async function deleteBookingFromCalendar(farmId, googleEventId) {
+  if (!googleEventId) return;
+  try {
+    await fetch("/api/calendar/sync-booking", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ farmId, googleEventId, action: "delete" }),
+    });
+  } catch (e) {
+    console.error("Calendar delete failed:", e);
+  }
 }
 
 const emptyForm = { customer: "", phone: "", base: 0, discount: 0, discountReason: "", startDate: "", startTime: "", endDate: "", endTime: "", guestCount: "", extraGuestFee: 0, depositAmount: 0, depositMethod: "نقدي", remainingMethod: "نقدي", remainingSettled: false, excludeCommission: false, notes: "" };
@@ -92,6 +134,7 @@ export default function FarmCalendar() {
   const [draftPrices, setDraftPrices] = useState(defaultPriceSet());
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [calendarStatus, setCalendarStatus] = useState({});
   const touchStartY = useRef(null);
   const [currentEmail, setCurrentEmail] = useState("");
   const [accountDraft, setAccountDraft] = useState({ email: "", password: "", confirmPassword: "" });
@@ -153,6 +196,51 @@ export default function FarmCalendar() {
       setAccountDraft((prev) => ({ ...prev, email }));
     });
   }, []);
+
+  async function refreshCalendarStatus(farmIds) {
+    const entries = await Promise.all(
+      farmIds.map(async (id) => {
+        try {
+          const res = await fetch(`/api/calendar/status?farmId=${encodeURIComponent(id)}`);
+          const data = await res.json();
+          return [id, data];
+        } catch {
+          return [id, { connected: false }];
+        }
+      })
+    );
+    setCalendarStatus((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
+  }
+
+  useEffect(() => {
+    if (!farms.length) return;
+    refreshCalendarStatus(farms.map((f) => f.id));
+  }, [farms.length]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("calendar");
+    if (!result) return;
+    if (result === "connected") alert("تم ربط قوقل كالندر بنجاح");
+    else if (result === "error") alert("صار خطأ بربط قوقل كالندر، حاول مرة ثانية");
+    window.history.replaceState({}, "", window.location.pathname);
+    setSettingsOpen(true);
+    setSettingsTab("farms");
+  }, []);
+
+  function connectGoogleCalendar(farmId) {
+    window.location.href = `/api/auth/google/start?farmId=${encodeURIComponent(farmId)}`;
+  }
+
+  async function disconnectGoogleCalendar(farmId) {
+    if (!confirm("متأكد بدك تفصل قوقل كالندر عن هاي المزرعة؟")) return;
+    await fetch("/api/calendar/disconnect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ farmId }),
+    });
+    setCalendarStatus((prev) => ({ ...prev, [farmId]: { connected: false } }));
+  }
 
   async function saveAccount() {
     const updates = {};
@@ -261,6 +349,7 @@ export default function FarmCalendar() {
     if (!form.customer.trim()) return;
     const key = modal.key;
     const farmId = selectedFarmId;
+    const farmName = farm?.name || "";
     const clean = { ...form, base: Number(form.base) || 0, discount: Number(form.discount) || 0, guestCount: Number(form.guestCount) || 0, extraGuestFee: Number(form.extraGuestFee) || 0, depositAmount: Number(form.depositAmount) || 0, remainingSettled: !!form.remainingSettled, excludeCommission: !!form.excludeCommission };
     setBookings((prev) => ({
       ...prev,
@@ -268,11 +357,18 @@ export default function FarmCalendar() {
     }));
     closeModal();
     const { error } = await supabase.from("bookings").upsert(bookingAppToRow(farmId, key, clean), { onConflict: "farm_id,slot_key" });
-    if (error) { console.error(error); alert("صار خطأ بحفظ الحجز، تأكد من الاتصال بالإنترنت وحاول مرة ثانية"); }
+    if (error) { console.error(error); alert("صار خطأ بحفظ الحجز، تأكد من الاتصال بالإنترنت وحاول مرة ثانية"); return; }
+
+    const googleEventId = await syncBookingToCalendar(farmId, key, farmName, clean);
+    if (googleEventId && googleEventId !== clean.googleEventId) {
+      setBookings((prev) => ({ ...prev, [farmId]: { ...prev[farmId], [key]: { ...prev[farmId][key], googleEventId } } }));
+      await supabase.from("bookings").update({ google_event_id: googleEventId }).eq("farm_id", farmId).eq("slot_key", key);
+    }
   }
   async function deleteBooking() {
     const key = modal.key;
     const farmId = selectedFarmId;
+    const existingGoogleEventId = bookings[farmId]?.[key]?.googleEventId || null;
     setBookings((prev) => {
       const copy = { ...prev[farmId] };
       delete copy[key];
@@ -281,6 +377,7 @@ export default function FarmCalendar() {
     closeModal();
     const { error } = await supabase.from("bookings").delete().eq("farm_id", farmId).eq("slot_key", key);
     if (error) console.error(error);
+    deleteBookingFromCalendar(farmId, existingGoogleEventId);
   }
   function changeMonth(delta) { setCurrent(new Date(year, month + delta, 1)); }
 
@@ -720,13 +817,33 @@ export default function FarmCalendar() {
             {settingsTab === "farms" && (
               <div style={styles.formGrid}>
                 {farms.map((f) => (
-                  <div key={f.id} style={styles.farmRow}>
-                    <div style={{ flex: 1 }}>
-                      <div style={styles.farmRowName}>{f.name}</div>
-                      {f.location && <div style={styles.farmRowLoc}><MapPin size={11} /> {f.location}</div>}
+                  <div key={f.id} style={styles.farmCard}>
+                    <div style={styles.farmRow}>
+                      <div style={{ flex: 1 }}>
+                        <div style={styles.farmRowName}>{f.name}</div>
+                        {f.location && <div style={styles.farmRowLoc}><MapPin size={11} /> {f.location}</div>}
+                      </div>
+                      <button className="fc-btn" onClick={() => startEditFarm(f)} style={styles.iconBtnSmall} aria-label="تعديل"><Pencil size={14} color="#6B6355" /></button>
+                      {farms.length > 1 && <button className="fc-btn" onClick={() => deleteFarm(f.id)} style={styles.iconBtnSmall} aria-label="حذف"><Trash2 size={14} color="#791F1F" /></button>}
                     </div>
-                    <button className="fc-btn" onClick={() => startEditFarm(f)} style={styles.iconBtnSmall} aria-label="تعديل"><Pencil size={14} color="#6B6355" /></button>
-                    {farms.length > 1 && <button className="fc-btn" onClick={() => deleteFarm(f.id)} style={styles.iconBtnSmall} aria-label="حذف"><Trash2 size={14} color="#791F1F" /></button>}
+                    <div style={styles.calendarRow}>
+                      <CalendarDays size={13} color="#6B6355" />
+                      {calendarStatus[f.id]?.connected ? (
+                        <>
+                          <span style={styles.calendarConnectedText}>متصل: {calendarStatus[f.id].email}</span>
+                          <button className="fc-btn" onClick={() => disconnectGoogleCalendar(f.id)} style={styles.calendarLinkBtn}>
+                            <Unlink size={12} /> فصل
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span style={styles.calendarDisconnectedText}>غير مربوط بقوقل كالندر</span>
+                          <button className="fc-btn" onClick={() => connectGoogleCalendar(f.id)} style={styles.calendarLinkBtn}>
+                            <Link2 size={12} /> ربط
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 ))}
 
@@ -979,9 +1096,14 @@ const styles = {
   tabRow: { display: "flex", gap: 6, margin: "10px 0 4px" },
   tabBtn: { flex: 1, padding: "7px 8px", borderRadius: 8, border: "1px solid #C9C0A8", background: "#FFFFFF", fontSize: 12.5, color: "#4A453A" },
   tabBtnActive: { background: "#34345C", borderColor: "#34345C", color: "#EDECF6" },
-  farmRow: { display: "flex", alignItems: "center", gap: 4, background: "#FFFFFF", border: "1px solid #DAD3BE", borderRadius: 8, padding: "8px 10px" },
+  farmCard: { background: "#FFFFFF", border: "1px solid #DAD3BE", borderRadius: 8, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6 },
+  farmRow: { display: "flex", alignItems: "center", gap: 4 },
   farmRowName: { fontSize: 13, fontWeight: 500 },
   farmRowLoc: { fontSize: 11, color: "#6B6355", display: "flex", alignItems: "center", gap: 3, marginTop: 2 },
+  calendarRow: { display: "flex", alignItems: "center", gap: 6, paddingTop: 6, borderTop: "1px solid #EFE9DA", fontSize: 11 },
+  calendarConnectedText: { color: "#3B4520", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  calendarDisconnectedText: { color: "#6B6355", flex: 1 },
+  calendarLinkBtn: { display: "flex", alignItems: "center", gap: 4, fontSize: 11, padding: "4px 8px", borderRadius: 6, border: "1px solid #C9C0A8", background: "#F7F3E9", color: "#4A453A", flexShrink: 0 },
   priceGroupBlock: { background: "#FFFFFF", border: "1px solid #DAD3BE", borderRadius: 8, padding: "8px 10px", marginTop: 6 },
   priceGroupLabel: { fontSize: 12, fontWeight: 500, color: "#23291F" },
   breakdownRow: { display: "flex", justifyContent: "space-between", fontSize: 12, color: "#4A453A", padding: "4px 0" },
