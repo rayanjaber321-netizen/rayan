@@ -276,6 +276,7 @@ export default function FarmCalendar() {
     Object.entries(farmBookings).forEach(([k, b]) => {
       if (!k.startsWith(prefix)) return;
       count += 1;
+      if (b.excludeCommission) return; // حجز خاص — ما بينحسب بالإيرادات ولا المبالغ المتوقعة
       const final = bookingFinal(b);
       revenue += final;
       remaining += Math.max(0, final - Number(b.depositAmount || 0));
