@@ -91,28 +91,25 @@ export default function PublicFarmList() {
 
       <div style={styles.grid}>
         {(farms || []).map((f, idx) => (
-          <Link
-            key={f.id}
-            to={`/farm/${f.id}`}
-            className="fj-card"
-            style={{ ...styles.card, animationDelay: `${idx * 70}ms` }}
-          >
-            {f.coverPhoto ? (
-              <img src={f.coverPhoto} alt={f.name} style={{ ...styles.cardImg, objectPosition: `center ${f.coverCropPosition}%` }} />
-            ) : (
-              <div style={styles.cardImgPlaceholder} />
-            )}
-            <div style={styles.cardScrim} />
-            <div style={styles.cardShine} />
-            <div style={styles.cardBody}>
-              <div style={styles.cardName}>{translateFarmName(f.name, lang)}</div>
-              {f.location && (
-                <div style={styles.cardLoc}>
-                  <MapPin size={10} /> {f.location}
-                </div>
+          <div key={f.id} className="fj-card" style={{ ...styles.cardFrame, animationDelay: `${idx * 70}ms` }}>
+            <Link to={`/farm/${f.id}`} style={styles.card}>
+              {f.coverPhoto ? (
+                <img src={f.coverPhoto} alt={f.name} style={{ ...styles.cardImg, objectPosition: `center ${f.coverCropPosition}%` }} />
+              ) : (
+                <div style={styles.cardImgPlaceholder} />
               )}
-            </div>
-          </Link>
+              <div style={styles.cardScrim} />
+              <div style={styles.cardShine} />
+              <div style={styles.cardBody}>
+                <div style={styles.cardName}>{translateFarmName(f.name, lang)}</div>
+                {f.location && (
+                  <div style={styles.cardLoc}>
+                    <MapPin size={10} /> {f.location}
+                  </div>
+                )}
+              </div>
+            </Link>
+          </div>
         ))}
       </div>
     </div>
@@ -183,11 +180,15 @@ const styles = {
   langOptionActive: { opacity: 1, background: "#FFFFFF", boxShadow: "0 3px 8px rgba(35,41,31,0.2)" },
   loading: { textAlign: "center", color: "#6B6355", padding: 30 },
   grid: { maxWidth: 480, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 },
+  cardFrame: {
+    padding: 4, borderRadius: 29,
+    background: "linear-gradient(135deg, #E3A34E, #BC6C25)",
+    boxShadow: "0 3px 6px -2px rgba(30,25,12,0.2), 0 26px 40px -20px rgba(30,25,12,0.55)",
+  },
   card: {
     position: "relative", display: "block", textDecoration: "none", color: "inherit",
-    borderRadius: 26, overflow: "hidden", aspectRatio: "4 / 5",
-    boxShadow: "0 3px 6px -2px rgba(30,25,12,0.2), 0 26px 40px -20px rgba(30,25,12,0.55)",
-    border: "1px solid rgba(255,255,255,0.4)",
+    borderRadius: 25, overflow: "hidden", aspectRatio: "4 / 5",
+    border: "2px solid #F8F3E7",
   },
   cardImg: { position: "absolute", inset: 0, display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 75%" },
   cardImgPlaceholder: { position: "absolute", inset: 0, background: "#DAD3BE" },
