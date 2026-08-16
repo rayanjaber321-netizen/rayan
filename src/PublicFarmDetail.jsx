@@ -11,6 +11,7 @@ import {
   dateKey, fmtMoney, fmtTime12, toDateTime, priceForWeekday, extraGuestFeeFor, defaultPriceSet, buildMonthGrid, pad,
 } from "./shared.js";
 import { useLang, t, MONTHS, WEEKDAYS_T, translateFarmName } from "./i18n.js";
+import { usePreventPinchZoom } from "./usePreventZoom.js";
 
 function fmtMoneyL(n, lang) {
   const num = (Math.round(n * 100) / 100).toLocaleString("en-US");
@@ -39,6 +40,7 @@ export default function PublicFarmDetail() {
   const [bookingForm, setBookingForm] = useState({ name: "", phone: "", guests: "" });
   const [shared, setShared] = useState(false);
   const [lang, setLang] = useLang();
+  usePreventPinchZoom();
   const touchStartX = React.useRef(null);
 
   useEffect(() => {
@@ -438,7 +440,7 @@ export default function PublicFarmDetail() {
 }
 
 const styles = {
-  page: { fontFamily: "'Tajawal', sans-serif", background: "#EAE4D6", color: "#23291F", minHeight: "100svh", padding: "20px 14px", boxSizing: "border-box" },
+  page: { fontFamily: "'Tajawal', sans-serif", background: "#EAE4D6", color: "#23291F", minHeight: "100svh", padding: "20px 14px", boxSizing: "border-box", touchAction: "manipulation" },
   wrap: { maxWidth: 480, margin: "0 auto" },
   backLink: { display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "#6B6355", textDecoration: "none", marginTop: 42, marginBottom: 12 },
   shareBtn: { position: "fixed", top: 16, left: 16, zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", width: 38, height: 38, border: "1px solid #C9C0A8", background: "#F7F3E9", borderRadius: "50%", color: "#4A453A", cursor: "pointer" },
