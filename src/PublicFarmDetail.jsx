@@ -440,7 +440,7 @@ export default function PublicFarmDetail() {
 const styles = {
   page: { fontFamily: "'Tajawal', sans-serif", background: "#EAE4D6", color: "#23291F", minHeight: "100svh", padding: "20px 14px", boxSizing: "border-box" },
   wrap: { maxWidth: 480, margin: "0 auto" },
-  backLink: { display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "#6B6355", textDecoration: "none", marginBottom: 12 },
+  backLink: { display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "#6B6355", textDecoration: "none", marginTop: 42, marginBottom: 12 },
   shareBtn: { position: "fixed", top: 16, left: 16, zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", width: 38, height: 38, border: "1px solid #C9C0A8", background: "#F7F3E9", borderRadius: "50%", color: "#4A453A", cursor: "pointer" },
   langSwitch: { position: "fixed", top: 16, right: 16, zIndex: 60, display: "flex", gap: 2, border: "1px solid #C9C0A8", background: "#F7F3E9", borderRadius: 22, padding: 3 },
   langOption: { display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: "50%", border: "none", background: "transparent", fontSize: 16, cursor: "pointer", opacity: 0.4 },
