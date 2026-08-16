@@ -18,6 +18,11 @@ const NO_ALI_COMMISSION_FARMS = ["نخل", "هيثم"];
 function farmHasNoAliCommission(farmName) {
   return NO_ALI_COMMISSION_FARMS.some((m) => (farmName || "").includes(m));
 }
+// هاي المزارع بتفضّل تسعير مجمّع (أحد-أربعاء سعر واحد، خميس/جمعة/سبت كل واحد لحاله) بدل تسعير كل يوم لحاله.
+const GROUPED_PRICING_FARMS = ["نخل", "هيثم"];
+function farmUsesGroupedPricing(farmName) {
+  return GROUPED_PRICING_FARMS.some((m) => (farmName || "").includes(m));
+}
 
 function bookingFinal(b) {
   return Math.max(0, Number(b.base) + Number(b.extraGuestFee || 0) - Number(b.discount || 0));
@@ -927,21 +932,54 @@ export default function FarmCalendar() {
                 <select className="fc-select" style={styles.input} value={pricingFarmId} onChange={(e) => { setPricingFarmId(e.target.value); setDraftPrices({ ...defaultPriceSet(), aliFee: REFERRAL_FEE, rayanFee: REFERRAL_FEE, ...(prices[e.target.value] || {}), ...(commissionSettings[e.target.value] || {}) }); }}>
                   {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
-                {WEEKDAY_KEYS.map((k, i) => (
-                  <div key={k} style={styles.priceGroupBlock}>
-                    <div style={styles.priceGroupLabel}>يوم {WEEKDAYS[i]}</div>
-                    <div style={styles.twoCol}>
-                      <div style={{ flex: 1 }}>
-                        <label style={styles.label}><Sun size={12} /> نهاري</label>
-                        <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.day[k]} onChange={(e) => setDraftPrices({ ...draftPrices, day: { ...draftPrices.day, [k]: e.target.value } })} />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <label style={styles.label}><Moon size={12} /> سهرة</label>
-                        <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.night[k]} onChange={(e) => setDraftPrices({ ...draftPrices, night: { ...draftPrices.night, [k]: e.target.value } })} />
+                {farmUsesGroupedPricing(farms.find((f) => f.id === pricingFarmId)?.name) ? (
+                  <>
+                    <div style={styles.priceGroupBlock}>
+                      <div style={styles.priceGroupLabel}>الأحد - الأربعاء</div>
+                      <div style={styles.twoCol}>
+                        <div style={{ flex: 1 }}>
+                          <label style={styles.label}><Sun size={12} /> نهاري</label>
+                          <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.day.sun} onChange={(e) => { const v = e.target.value; setDraftPrices({ ...draftPrices, day: { ...draftPrices.day, sun: v, mon: v, tue: v, wed: v } }); }} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={styles.label}><Moon size={12} /> سهرة</label>
+                          <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.night.sun} onChange={(e) => { const v = e.target.value; setDraftPrices({ ...draftPrices, night: { ...draftPrices.night, sun: v, mon: v, tue: v, wed: v } }); }} />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                    {[{ k: "thu", i: 4 }, { k: "fri", i: 5 }, { k: "sat", i: 6 }].map(({ k, i }) => (
+                      <div key={k} style={styles.priceGroupBlock}>
+                        <div style={styles.priceGroupLabel}>يوم {WEEKDAYS[i]}</div>
+                        <div style={styles.twoCol}>
+                          <div style={{ flex: 1 }}>
+                            <label style={styles.label}><Sun size={12} /> نهاري</label>
+                            <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.day[k]} onChange={(e) => setDraftPrices({ ...draftPrices, day: { ...draftPrices.day, [k]: e.target.value } })} />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <label style={styles.label}><Moon size={12} /> سهرة</label>
+                            <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.night[k]} onChange={(e) => setDraftPrices({ ...draftPrices, night: { ...draftPrices.night, [k]: e.target.value } })} />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  WEEKDAY_KEYS.map((k, i) => (
+                    <div key={k} style={styles.priceGroupBlock}>
+                      <div style={styles.priceGroupLabel}>يوم {WEEKDAYS[i]}</div>
+                      <div style={styles.twoCol}>
+                        <div style={{ flex: 1 }}>
+                          <label style={styles.label}><Sun size={12} /> نهاري</label>
+                          <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.day[k]} onChange={(e) => setDraftPrices({ ...draftPrices, day: { ...draftPrices.day, [k]: e.target.value } })} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={styles.label}><Moon size={12} /> سهرة</label>
+                          <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.night[k]} onChange={(e) => setDraftPrices({ ...draftPrices, night: { ...draftPrices.night, [k]: e.target.value } })} />
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
 
                 <div style={styles.priceGroupBlock}>
                   <div style={styles.priceGroupLabel}>رسوم الأشخاص الإضافيين</div>
