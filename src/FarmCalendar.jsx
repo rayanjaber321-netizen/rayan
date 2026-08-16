@@ -13,7 +13,6 @@ const PAYMENT_METHODS = [
   { id: "تحويل بنكي", label: "تحويل بنكي", icon: Landmark },
 ];
 const REFERRAL_FEE = 5;
-const REFERRERS = ["راتب علي", "راتب ريان"];
 
 function bookingFinal(b) {
   return Math.max(0, Number(b.base) + Number(b.extraGuestFee || 0) - Number(b.discount || 0));
@@ -59,7 +58,7 @@ function bookingRowToApp(row) {
     guestCount: row.guest_count || 0, extraGuestFee: row.extra_guest_fee || 0,
     depositAmount: row.deposit_amount || 0, depositMethod: row.deposit_method || "نقدي",
     remainingMethod: row.remaining_method || "نقدي", remainingSettled: !!row.remaining_settled,
-    excludeCommission: !!row.exclude_commission, notes: row.notes || "",
+    excludeCommission: !!row.exclude_commission, excludeRayanCommission: !!row.exclude_rayan_commission, notes: row.notes || "",
     googleEventId: row.google_event_id || null,
     source: row.source || "app",
   };
@@ -73,7 +72,7 @@ function bookingAppToRow(farmId, slotKey, b) {
     guest_count: Number(b.guestCount) || 0, extra_guest_fee: Number(b.extraGuestFee) || 0,
     deposit_amount: Number(b.depositAmount) || 0, deposit_method: b.depositMethod,
     remaining_method: b.remainingMethod, remaining_settled: !!b.remainingSettled,
-    exclude_commission: !!b.excludeCommission, notes: b.notes || "",
+    exclude_commission: !!b.excludeCommission, exclude_rayan_commission: !!b.excludeRayanCommission, notes: b.notes || "",
     google_event_id: b.googleEventId || null,
   };
 }
@@ -118,7 +117,7 @@ async function deleteBookingFromCalendar(farmId, googleEventId) {
   }
 }
 
-const emptyForm = { customer: "", phone: "", base: 0, discount: 0, discountReason: "", startDate: "", startTime: "", endDate: "", endTime: "", guestCount: "", extraGuestFee: 0, depositAmount: 0, depositMethod: "نقدي", remainingMethod: "نقدي", remainingSettled: false, excludeCommission: false, notes: "" };
+const emptyForm = { customer: "", phone: "", base: 0, discount: 0, discountReason: "", startDate: "", startTime: "", endDate: "", endTime: "", guestCount: "", extraGuestFee: 0, depositAmount: 0, depositMethod: "نقدي", remainingMethod: "نقدي", remainingSettled: false, excludeCommission: false, excludeRayanCommission: false, notes: "" };
 const emptyFarmDraft = { name: "", location: "", maps_url: "", description: "" };
 const emptyFinanceDraft = { label: "", amount: "" };
 
@@ -145,6 +144,7 @@ export default function FarmCalendar() {
   const [editingFarmId, setEditingFarmId] = useState(null);
   const [pricingFarmId, setPricingFarmId] = useState(null);
   const [draftPrices, setDraftPrices] = useState(defaultPriceSet());
+  const [commissionSettings, setCommissionSettings] = useState({});
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [calendarStatus, setCalendarStatus] = useState({});
@@ -156,12 +156,13 @@ export default function FarmCalendar() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [farmsRes, pricesRes, bookingsRes, financeRes, photosRes] = await Promise.all([
+      const [farmsRes, pricesRes, bookingsRes, financeRes, photosRes, commissionRes] = await Promise.all([
         supabase.from("farms").select("*").order("created_at"),
         supabase.from("farm_prices").select("*"),
         supabase.from("bookings").select("*"),
         supabase.from("finance_items").select("*"),
         supabase.from("farm_photos").select("*").order("created_at"),
+        supabase.from("farm_commission_settings").select("*"),
       ]);
       if (cancelled) return;
 
@@ -185,12 +186,15 @@ export default function FarmCalendar() {
         photosById[row.farm_id] = photosById[row.farm_id] || [];
         photosById[row.farm_id].push({ id: row.id, url: row.url, isCover: !!row.is_cover, mediaType: row.media_type || "photo" });
       });
+      const commissionById = {};
+      (commissionRes.data || []).forEach((row) => { commissionById[row.farm_id] = { rayanFee: row.rayan_fee ?? REFERRAL_FEE }; });
 
       setFarms(loadedFarms);
       setPrices(pricesById);
       setBookings(bookingsById);
       setFinances(financesById);
       setPhotos(photosById);
+      setCommissionSettings(commissionById);
       if (loadedFarms.length) {
         setSelectedFarmId(loadedFarms[0].id);
         setPricingFarmId(loadedFarms[0].id);
@@ -299,15 +303,22 @@ export default function FarmCalendar() {
   const totalExpenses = curFinances.expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
   const totalSalaries = curFinances.salaries.reduce((s, e) => s + Number(e.amount || 0), 0);
 
-  const commissionEligibleCount = useMemo(() => {
+  const rayanFee = commissionSettings[selectedFarmId]?.rayanFee ?? REFERRAL_FEE;
+
+  const { aliEligibleCount, rayanEligibleCount } = useMemo(() => {
     const prefix = `${year}-${pad(month + 1)}-`;
-    let count = 0;
+    let ali = 0, rayan = 0;
     Object.entries(farmBookings).forEach(([k, b]) => {
-      if (k.startsWith(prefix) && !b.excludeCommission) count += 1;
+      if (!k.startsWith(prefix) || b.excludeCommission) return;
+      ali += 1;
+      if (!b.excludeRayanCommission) rayan += 1;
     });
-    return count;
+    return { aliEligibleCount: ali, rayanEligibleCount: rayan };
   }, [farmBookings, year, month]);
-  const referralCommissions = REFERRERS.map((label) => ({ label, count: commissionEligibleCount, amount: commissionEligibleCount * REFERRAL_FEE }));
+  const referralCommissions = [
+    { label: "راتب علي", count: aliEligibleCount, fee: REFERRAL_FEE, amount: aliEligibleCount * REFERRAL_FEE },
+    { label: "راتب ريان", count: rayanEligibleCount, fee: rayanFee, amount: rayanEligibleCount * rayanFee },
+  ];
   const totalCommissions = referralCommissions.reduce((s, r) => s + r.amount, 0);
 
   const netIncome = stats.revenue - totalExpenses - totalSalaries - totalCommissions;
@@ -363,7 +374,7 @@ export default function FarmCalendar() {
     const key = modal.key;
     const farmId = selectedFarmId;
     const farmName = farm?.name || "";
-    const clean = { ...form, base: Number(form.base) || 0, discount: Number(form.discount) || 0, guestCount: Number(form.guestCount) || 0, extraGuestFee: Number(form.extraGuestFee) || 0, depositAmount: Number(form.depositAmount) || 0, remainingSettled: !!form.remainingSettled, excludeCommission: !!form.excludeCommission };
+    const clean = { ...form, base: Number(form.base) || 0, discount: Number(form.discount) || 0, guestCount: Number(form.guestCount) || 0, extraGuestFee: Number(form.extraGuestFee) || 0, depositAmount: Number(form.depositAmount) || 0, remainingSettled: !!form.remainingSettled, excludeCommission: !!form.excludeCommission, excludeRayanCommission: !!form.excludeRayanCommission };
     setBookings((prev) => ({
       ...prev,
       [farmId]: { ...prev[farmId], [key]: clean },
@@ -450,7 +461,7 @@ export default function FarmCalendar() {
   function openPricingTab(farmId) {
     setSettingsTab("pricing");
     setPricingFarmId(farmId);
-    setDraftPrices({ ...defaultPriceSet(), ...(prices[farmId] || {}) });
+    setDraftPrices({ ...defaultPriceSet(), rayanFee: REFERRAL_FEE, ...(prices[farmId] || {}), ...(commissionSettings[farmId] || {}) });
     setSettingsOpen(true);
   }
 
@@ -500,10 +511,14 @@ export default function FarmCalendar() {
       nightStart: draftPrices.nightStart || DEFAULT_TIMES.night.start,
       nightEnd: draftPrices.nightEnd || DEFAULT_TIMES.night.end,
     };
+    const rayanFee = Number(draftPrices.rayanFee) || REFERRAL_FEE;
     setPrices((prev) => ({ ...prev, [pricingFarmId]: clean }));
+    setCommissionSettings((prev) => ({ ...prev, [pricingFarmId]: { rayanFee } }));
     setSettingsOpen(false);
     const { error } = await supabase.from("farm_prices").upsert(priceAppToRow(pricingFarmId, clean), { onConflict: "farm_id" });
     if (error) { console.error(error); alert("صار خطأ بحفظ الأسعار"); }
+    const { error: commErr } = await supabase.from("farm_commission_settings").upsert({ farm_id: pricingFarmId, rayan_fee: rayanFee }, { onConflict: "farm_id" });
+    if (commErr) { console.error(commErr); alert("صار خطأ بحفظ عمولة ريان"); }
   }
 
   async function uploadPhoto(farmId, file) {
@@ -731,6 +746,11 @@ export default function FarmCalendar() {
                 حجز خاص (بدون عمولة علي وريان) — مثلاً لأصحاب المزرعة
               </label>
 
+              <label className="fc-btn" style={styles.checkboxRow}>
+                <input type="checkbox" checked={!!form.excludeRayanCommission} onChange={(e) => setForm({ ...form, excludeRayanCommission: e.target.checked })} />
+                بدون عمولة ريان بس (علي بياخد عمولته عادي)
+              </label>
+
               <div style={styles.twoCol}>
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>السعر الأساسي (د.أ)</label>
@@ -833,7 +853,7 @@ export default function FarmCalendar() {
 
             <div style={styles.tabRow}>
               <button className="fc-btn" onClick={() => setSettingsTab("farms")} style={{ ...styles.tabBtn, ...(settingsTab === "farms" ? styles.tabBtnActive : {}) }}>المزارع</button>
-              <button className="fc-btn" onClick={() => { setSettingsTab("pricing"); setPricingFarmId(selectedFarmId); setDraftPrices({ ...defaultPriceSet(), ...(prices[selectedFarmId] || {}) }); }} style={{ ...styles.tabBtn, ...(settingsTab === "pricing" ? styles.tabBtnActive : {}) }}>الأسعار</button>
+              <button className="fc-btn" onClick={() => { setSettingsTab("pricing"); setPricingFarmId(selectedFarmId); setDraftPrices({ ...defaultPriceSet(), rayanFee: REFERRAL_FEE, ...(prices[selectedFarmId] || {}), ...(commissionSettings[selectedFarmId] || {}) }); }} style={{ ...styles.tabBtn, ...(settingsTab === "pricing" ? styles.tabBtnActive : {}) }}>الأسعار</button>
               <button className="fc-btn" onClick={() => { setSettingsTab("photos"); setPricingFarmId(selectedFarmId); }} style={{ ...styles.tabBtn, ...(settingsTab === "photos" ? styles.tabBtnActive : {}) }}>الصور</button>
               <button className="fc-btn" onClick={() => setSettingsTab("account")} style={{ ...styles.tabBtn, ...(settingsTab === "account" ? styles.tabBtnActive : {}) }}>الحساب</button>
             </div>
@@ -887,7 +907,7 @@ export default function FarmCalendar() {
             {settingsTab === "pricing" && (
               <div style={styles.formGrid}>
                 <label style={styles.label}>المزرعة</label>
-                <select className="fc-select" style={styles.input} value={pricingFarmId} onChange={(e) => { setPricingFarmId(e.target.value); setDraftPrices({ ...defaultPriceSet(), ...(prices[e.target.value] || {}) }); }}>
+                <select className="fc-select" style={styles.input} value={pricingFarmId} onChange={(e) => { setPricingFarmId(e.target.value); setDraftPrices({ ...defaultPriceSet(), rayanFee: REFERRAL_FEE, ...(prices[e.target.value] || {}), ...(commissionSettings[e.target.value] || {}) }); }}>
                   {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
                 {WEEKDAY_KEYS.map((k, i) => (
@@ -946,6 +966,12 @@ export default function FarmCalendar() {
                       <input className="fc-input fc-num" type="time" style={styles.input} value={draftPrices.nightEnd} onChange={(e) => setDraftPrices({ ...draftPrices, nightEnd: e.target.value })} />
                     </div>
                   </div>
+                </div>
+
+                <div style={styles.priceGroupBlock}>
+                  <div style={styles.priceGroupLabel}>عمولة ريان لهاي المزرعة</div>
+                  <label style={styles.label}>عمولة ريان لكل حجز (د.أ) — علي دايماً {fmtMoney(REFERRAL_FEE)}</label>
+                  <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.rayanFee} onChange={(e) => setDraftPrices({ ...draftPrices, rayanFee: e.target.value })} />
                 </div>
 
                 <button className="fc-btn" onClick={savePricing} style={{ ...styles.saveBtn, marginTop: 6, marginRight: 0 }}>حفظ الأسعار</button>
@@ -1077,9 +1103,9 @@ export default function FarmCalendar() {
               </div>
 
               <div style={styles.priceGroupBlock}>
-                <div style={styles.priceGroupLabel}>رواتب علي وريان ({fmtMoney(REFERRAL_FEE)} لكل حجز لكل واحد)</div>
+                <div style={styles.priceGroupLabel}>رواتب علي وريان</div>
                 {referralCommissions.map((r) => (
-                  <div key={r.label} style={styles.breakdownRow}><span>{r.label} ({r.count} حجز)</span><span className="fc-num">{fmtMoney(r.amount)}</span></div>
+                  <div key={r.label} style={styles.breakdownRow}><span>{r.label} ({r.count} حجز × {fmtMoney(r.fee)})</span><span className="fc-num">{fmtMoney(r.amount)}</span></div>
                 ))}
                 <div style={{ ...styles.breakdownRow, ...styles.breakdownTotal }}><span>المجموع</span><span className="fc-num">{fmtMoney(totalCommissions)}</span></div>
               </div>
