@@ -10,7 +10,7 @@ import {
   ARABIC_MONTHS, WEEKDAYS, PRICE_GROUPS, DEFAULT_TIMES,
   dateKey, fmtMoney, fmtTime12, toDateTime, groupForWeekday, defaultPriceSet, buildMonthGrid, pad,
 } from "./shared.js";
-import { useLang, t, MONTHS, WEEKDAYS_T, PRICE_GROUP_LABELS } from "./i18n.js";
+import { useLang, t, MONTHS, WEEKDAYS_T, PRICE_GROUP_LABELS, translateFarmName } from "./i18n.js";
 
 function fmtMoneyL(n, lang) {
   const num = (Math.round(n * 100) / 100).toLocaleString("en-US");
@@ -133,7 +133,8 @@ export default function PublicFarmDetail() {
   }
 
   async function shareFarm() {
-    const shareData = { title: farm.name, text: t(lang, "shareFarmText")(farm.name), url: window.location.href };
+    const displayName = translateFarmName(farm.name, lang);
+    const shareData = { title: displayName, text: t(lang, "shareFarmText")(displayName), url: window.location.href };
     if (navigator.share) {
       try { await navigator.share(shareData); } catch { /* user cancelled */ }
     } else {
@@ -176,13 +177,10 @@ export default function PublicFarmDetail() {
         {shared ? <Check size={16} /> : <Share size={16} />}
       </button>
 
-      <button
-        onClick={() => setLang(lang === "ar" ? "en" : "ar")}
-        style={{ ...styles.shareBtn, left: "auto", right: 16, fontSize: 18 }}
-        aria-label="Language"
-      >
-        {lang === "ar" ? "🇺🇸" : "🇯🇴"}
-      </button>
+      <div style={styles.langSwitch}>
+        <button onClick={() => setLang("ar")} style={{ ...styles.langOption, ...(lang === "ar" ? styles.langOptionActive : {}) }} aria-label="العربية">🇯🇴</button>
+        <button onClick={() => setLang("en")} style={{ ...styles.langOption, ...(lang === "en" ? styles.langOptionActive : {}) }} aria-label="English">🇺🇸</button>
+      </div>
 
       <div style={styles.wrap}>
         <Link to="/" style={styles.backLink}><ArrowRight size={14} /> {t(lang, "allFarms")}</Link>
@@ -190,14 +188,14 @@ export default function PublicFarmDetail() {
         {photos.length > 0 ? (
           <div style={styles.gallery}>
             {photos.map((p, idx) => (
-              <img key={p.id} src={p.url} alt={farm.name} style={styles.galleryImg} onClick={() => setLightboxIndex(idx)} />
+              <img key={p.id} src={p.url} alt={translateFarmName(farm.name, lang)} style={styles.galleryImg} onClick={() => setLightboxIndex(idx)} />
             ))}
           </div>
         ) : (
           <div style={styles.galleryPlaceholder}>{t(lang, "noPhotos")}</div>
         )}
 
-        <div style={styles.title}>{farm.name}</div>
+        <div style={styles.title}>{translateFarmName(farm.name, lang)}</div>
         {farm.location && <div style={styles.location}><MapPin size={13} /> {farm.location}</div>}
         {farm.description && (
           <div>
@@ -405,7 +403,7 @@ export default function PublicFarmDetail() {
             onTouchStart={handleLightboxTouchStart}
             onTouchEnd={handleLightboxTouchEnd}
           >
-            <img src={photos[lightboxIndex].url} alt={farm.name} style={styles.lightboxImg} />
+            <img src={photos[lightboxIndex].url} alt={translateFarmName(farm.name, lang)} style={styles.lightboxImg} />
           </div>
           {photos.length > 1 && (
             <>
@@ -428,6 +426,9 @@ const styles = {
   wrap: { maxWidth: 480, margin: "0 auto" },
   backLink: { display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "#6B6355", textDecoration: "none", marginBottom: 12 },
   shareBtn: { position: "fixed", top: 16, left: 16, zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", width: 38, height: 38, border: "1px solid #C9C0A8", background: "#F7F3E9", borderRadius: "50%", color: "#4A453A", cursor: "pointer" },
+  langSwitch: { position: "fixed", top: 16, right: 16, zIndex: 60, display: "flex", gap: 2, border: "1px solid #C9C0A8", background: "#F7F3E9", borderRadius: 22, padding: 3 },
+  langOption: { display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: "50%", border: "none", background: "transparent", fontSize: 16, cursor: "pointer", opacity: 0.4 },
+  langOptionActive: { opacity: 1, background: "#FFFFFF", boxShadow: "0 1px 4px rgba(35,41,31,0.15)" },
   gallery: { display: "flex", gap: 8, overflowX: "auto", marginBottom: 14, borderRadius: 12 },
   galleryImg: { height: 180, width: 260, objectFit: "cover", borderRadius: 12, flexShrink: 0, cursor: "pointer" },
   galleryPlaceholder: { height: 140, background: "#F1EEE3", border: "1px dashed #C9C0A8", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", color: "#6B6355", fontSize: 12, marginBottom: 14 },

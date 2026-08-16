@@ -14,6 +14,17 @@ export function t(lang, key) {
   return (translations[lang] && translations[lang][key]) || translations.ar[key] || key;
 }
 
+const FARM_NAME_EN = [
+  { match: "جنات", en: "Jannat Farm" },
+  { match: "سراء", en: "Al Israa Farm" },
+];
+
+export function translateFarmName(name, lang) {
+  if (lang !== "en" || !name) return name;
+  const found = FARM_NAME_EN.find((f) => name.includes(f.match));
+  return found ? found.en : name;
+}
+
 export const MONTHS = {
   ar: ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"],
   en: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { MapPin, Share, Check } from "lucide-react";
 import { supabase } from "./supabaseClient.js";
-import { useLang, t } from "./i18n.js";
+import { useLang, t, translateFarmName } from "./i18n.js";
 
 export default function PublicFarmList() {
   const [farms, setFarms] = useState(null);
@@ -61,13 +61,10 @@ export default function PublicFarmList() {
         {shared ? <Check size={16} /> : <Share size={16} />}
       </button>
 
-      <button
-        onClick={() => setLang(lang === "ar" ? "en" : "ar")}
-        style={{ ...styles.shareBtn, left: "auto", right: 16, fontSize: 18 }}
-        aria-label="Language"
-      >
-        {lang === "ar" ? "🇺🇸" : "🇯🇴"}
-      </button>
+      <div style={styles.langSwitch}>
+        <button onClick={() => setLang("ar")} style={{ ...styles.langOption, ...(lang === "ar" ? styles.langOptionActive : {}) }} aria-label="العربية">🇯🇴</button>
+        <button onClick={() => setLang("en")} style={{ ...styles.langOption, ...(lang === "en" ? styles.langOptionActive : {}) }} aria-label="English">🇺🇸</button>
+      </div>
 
       {farms === null && <div style={styles.loading}>{t(lang, "loading")}</div>}
       {farms !== null && farms.length === 0 && <div style={styles.loading}>{t(lang, "noFarms")}</div>}
@@ -81,7 +78,7 @@ export default function PublicFarmList() {
               <div style={styles.cardImgPlaceholder} />
             )}
             <div style={styles.cardBody}>
-              <div style={styles.cardName}>{f.name}</div>
+              <div style={styles.cardName}>{translateFarmName(f.name, lang)}</div>
               {f.location && (
                 <div style={styles.cardLoc}>
                   <MapPin size={12} /> {f.location}
@@ -103,6 +100,9 @@ const styles = {
   title: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 24 },
   subtitle: { fontSize: 13, color: "#6B6355", marginTop: 4 },
   shareBtn: { position: "fixed", top: 16, left: 16, display: "flex", alignItems: "center", justifyContent: "center", width: 38, height: 38, border: "1px solid #C9C0A8", background: "#F7F3E9", borderRadius: "50%", color: "#4A453A", cursor: "pointer" },
+  langSwitch: { position: "fixed", top: 16, right: 16, zIndex: 60, display: "flex", gap: 2, border: "1px solid #C9C0A8", background: "#F7F3E9", borderRadius: 22, padding: 3 },
+  langOption: { display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: "50%", border: "none", background: "transparent", fontSize: 16, cursor: "pointer", opacity: 0.4 },
+  langOptionActive: { opacity: 1, background: "#FFFFFF", boxShadow: "0 1px 4px rgba(35,41,31,0.15)" },
   loading: { textAlign: "center", color: "#6B6355", padding: 30 },
   grid: { maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12 },
   card: { display: "block", textDecoration: "none", color: "inherit", background: "#F7F3E9", border: "1px solid #DAD3BE", borderRadius: 14, overflow: "hidden" },
