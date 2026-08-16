@@ -2,13 +2,15 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { MapPin, Share, Check } from "lucide-react";
 import { supabase } from "./supabaseClient.js";
+import { useLang, t } from "./i18n.js";
 
 export default function PublicFarmList() {
   const [farms, setFarms] = useState(null);
   const [shared, setShared] = useState(false);
+  const [lang, setLang] = useLang();
 
   async function shareSite() {
-    const shareData = { title: "Farms Jo", text: "استمتع بصيفك مع Farms Jo", url: window.location.origin };
+    const shareData = { title: "Farms Jo", text: t(lang, "shareText"), url: window.location.origin };
     if (navigator.share) {
       try { await navigator.share(shareData); } catch { /* user cancelled */ }
     } else {
@@ -45,22 +47,30 @@ export default function PublicFarmList() {
   }, []);
 
   return (
-    <div dir="rtl" style={styles.page}>
+    <div dir={lang === "ar" ? "rtl" : "ltr"} style={styles.page}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;800&family=Tajawal:wght@400;500;700&display=swap');`}</style>
       <div style={styles.header}>
         <div style={styles.brandRow}>
           <img src="/icons/icon-192.png" alt="" style={styles.logo} />
         </div>
         <div style={styles.title}>Farms Jo</div>
-        <div style={styles.subtitle}>اختر مزرعة لتشوف الأسعار والأيام المتوفرة</div>
+        <div style={styles.subtitle}>{t(lang, "subtitle")}</div>
       </div>
 
-      <button onClick={shareSite} style={styles.shareBtn} aria-label="مشاركة">
+      <button onClick={shareSite} style={styles.shareBtn} aria-label={t(lang, "share")}>
         {shared ? <Check size={16} /> : <Share size={16} />}
       </button>
 
-      {farms === null && <div style={styles.loading}>جاري التحميل...</div>}
-      {farms !== null && farms.length === 0 && <div style={styles.loading}>لا يوجد مزارع حالياً</div>}
+      <button
+        onClick={() => setLang(lang === "ar" ? "en" : "ar")}
+        style={{ ...styles.shareBtn, left: "auto", right: 16, fontSize: 18 }}
+        aria-label="Language"
+      >
+        {lang === "ar" ? "🇺🇸" : "🇯🇴"}
+      </button>
+
+      {farms === null && <div style={styles.loading}>{t(lang, "loading")}</div>}
+      {farms !== null && farms.length === 0 && <div style={styles.loading}>{t(lang, "noFarms")}</div>}
 
       <div style={styles.grid}>
         {(farms || []).map((f) => (

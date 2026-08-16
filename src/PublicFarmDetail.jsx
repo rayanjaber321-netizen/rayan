@@ -8,14 +8,20 @@ const CLIQ_BANK = "البنك الإسلامي الأردني";
 import { supabase } from "./supabaseClient.js";
 import {
   ARABIC_MONTHS, WEEKDAYS, PRICE_GROUPS, DEFAULT_TIMES,
-  dateKey, fmtMoney, fmtTime12, toDateTime, groupForWeekday, defaultPriceSet, buildMonthGrid,
+  dateKey, fmtMoney, fmtTime12, toDateTime, groupForWeekday, defaultPriceSet, buildMonthGrid, pad,
 } from "./shared.js";
+import { useLang, t, MONTHS, WEEKDAYS_T, PRICE_GROUP_LABELS } from "./i18n.js";
 
-const BOOKING_RULES = [
-  "يجب دفع عربون لتأكيد الحجز",
-  "يُدفع المبلغ المتبقي عند الوصول",
-  "يوجد تأمين 50 دينار مسترد بالكامل عند الخروج",
-];
+function fmtMoneyL(n, lang) {
+  const num = (Math.round(n * 100) / 100).toLocaleString("en-US");
+  return lang === "ar" ? `${num} د.أ` : `${num} JD`;
+}
+function fmtTime12L(hhmm, lang) {
+  const [h, m] = hhmm.split(":").map(Number);
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  const period = lang === "ar" ? (h < 12 ? "صباحًا" : "مساءً") : (h < 12 ? "AM" : "PM");
+  return `${h12}:${pad(m)} ${period}`;
+}
 
 export default function PublicFarmDetail() {
   const { farmId } = useParams();
@@ -32,6 +38,7 @@ export default function PublicFarmDetail() {
   const [bookingSlot, setBookingSlot] = useState(null);
   const [bookingForm, setBookingForm] = useState({ name: "", phone: "", guests: "" });
   const [shared, setShared] = useState(false);
+  const [lang, setLang] = useLang();
   const touchStartX = React.useRef(null);
 
   useEffect(() => {
@@ -126,7 +133,7 @@ export default function PublicFarmDetail() {
   }
 
   async function shareFarm() {
-    const shareData = { title: farm.name, text: `شوف مزرعة ${farm.name} على Farms Jo`, url: window.location.href };
+    const shareData = { title: farm.name, text: t(lang, "shareFarmText")(farm.name), url: window.location.href };
     if (navigator.share) {
       try { await navigator.share(shareData); } catch { /* user cancelled */ }
     } else {
@@ -148,29 +155,37 @@ export default function PublicFarmDetail() {
   }
 
   if (farm === undefined) {
-    return <div dir="rtl" style={{ ...styles.page, textAlign: "center", padding: 60, color: "#6B6355" }}>جاري التحميل...</div>;
+    return <div dir={lang === "ar" ? "rtl" : "ltr"} style={{ ...styles.page, textAlign: "center", padding: 60, color: "#6B6355" }}>{t(lang, "loading")}</div>;
   }
   if (farm === null) {
     return (
-      <div dir="rtl" style={{ ...styles.page, textAlign: "center", padding: 60 }}>
-        المزرعة غير موجودة. <Link to="/" style={{ color: "#BC6C25" }}>رجوع للقائمة</Link>
+      <div dir={lang === "ar" ? "rtl" : "ltr"} style={{ ...styles.page, textAlign: "center", padding: 60 }}>
+        {t(lang, "farmNotFound")} <Link to="/" style={{ color: "#BC6C25" }}>{t(lang, "backToList")}</Link>
       </div>
     );
   }
 
   return (
-    <div dir="rtl" style={styles.page}>
+    <div dir={lang === "ar" ? "rtl" : "ltr"} style={styles.page}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;800&family=Tajawal:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap');
         .fc-num { font-family: 'IBM Plex Mono', monospace; }
         .pf-nav { cursor: pointer; border: none; background: #F7F3E9; border: 1px solid #C9C0A8; border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
       `}</style>
 
-      <button onClick={shareFarm} style={styles.shareBtn} aria-label="مشاركة">
+      <button onClick={shareFarm} style={styles.shareBtn} aria-label={t(lang, "share")}>
         {shared ? <Check size={16} /> : <Share size={16} />}
       </button>
 
+      <button
+        onClick={() => setLang(lang === "ar" ? "en" : "ar")}
+        style={{ ...styles.shareBtn, left: "auto", right: 16, fontSize: 18 }}
+        aria-label="Language"
+      >
+        {lang === "ar" ? "🇺🇸" : "🇯🇴"}
+      </button>
+
       <div style={styles.wrap}>
-        <Link to="/" style={styles.backLink}><ArrowRight size={14} /> كل المزارع</Link>
+        <Link to="/" style={styles.backLink}><ArrowRight size={14} /> {t(lang, "allFarms")}</Link>
 
         {photos.length > 0 ? (
           <div style={styles.gallery}>
@@ -179,7 +194,7 @@ export default function PublicFarmDetail() {
             ))}
           </div>
         ) : (
-          <div style={styles.galleryPlaceholder}>لا توجد صور بعد</div>
+          <div style={styles.galleryPlaceholder}>{t(lang, "noPhotos")}</div>
         )}
 
         <div style={styles.title}>{farm.name}</div>
@@ -188,45 +203,45 @@ export default function PublicFarmDetail() {
           <div>
             <div style={{ ...styles.description, ...(descExpanded ? {} : styles.descriptionClamped) }}>{farm.description}</div>
             <button onClick={() => setDescExpanded((v) => !v)} style={styles.descToggle}>
-              {descExpanded ? "عرض أقل" : "قراءة المزيد"}
+              {descExpanded ? t(lang, "showLess") : t(lang, "readMore")}
             </button>
           </div>
         )}
 
         <div style={styles.section}>
-          <div style={styles.sectionTitle}>الأسعار</div>
+          <div style={styles.sectionTitle}>{t(lang, "prices")}</div>
           {PRICE_GROUPS.map((g) => (
             <div key={g.key} style={styles.priceRow}>
-              <span style={styles.priceLabel}>{g.label}</span>
+              <span style={styles.priceLabel}>{PRICE_GROUP_LABELS[lang][g.key]}</span>
               <span style={styles.priceValues}>
-                <span><Sun size={11} /> {fmtMoney(prices.day[g.key])}</span>
-                <span><Moon size={11} /> {fmtMoney(prices.night[g.key])}</span>
+                <span><Sun size={11} /> {fmtMoneyL(prices.day[g.key], lang)}</span>
+                <span><Moon size={11} /> {fmtMoneyL(prices.night[g.key], lang)}</span>
               </span>
             </div>
           ))}
-          <div style={styles.guestNote}>+{fmtMoney(prices.guestFee)} لكل شخص فوق {prices.guestLimit}</div>
+          <div style={styles.guestNote}>{t(lang, "perPersonOver")(fmtMoneyL(prices.guestFee, lang), prices.guestLimit)}</div>
           {farm.maps_url && (
             <a href={farm.maps_url} target="_blank" rel="noopener noreferrer" style={styles.mapsLink}>
-              <MapPin size={13} /> افتح الموقع على الخارطة
+              <MapPin size={13} /> {t(lang, "openMap")}
             </a>
           )}
         </div>
 
         <div style={styles.section}>
-          <div style={styles.sectionTitle}>الأيام المتوفرة</div>
+          <div style={styles.sectionTitle}>{t(lang, "availability")}</div>
           <div style={styles.monthNav}>
             <button className="pf-nav" onClick={() => setCurrent(new Date(year, month + 1, 1))}><ChevronRight size={16} /></button>
-            <div style={styles.monthLabel}>{ARABIC_MONTHS[month]} {year}</div>
+            <div style={styles.monthLabel}>{MONTHS[lang][month]} {year}</div>
             <button className="pf-nav" onClick={goPrevMonth} disabled={isCurrentMonth} style={isCurrentMonth ? { opacity: 0.35, cursor: "default" } : undefined}>
               <ChevronLeft size={16} />
             </button>
           </div>
           <div style={styles.legend}>
-            <div style={styles.legendItem}><Sun size={13} color="#7A6A2E" /> <b>صباحي</b>: من الساعة 10 صباحاً حتى 9 مساءً</div>
-            <div style={styles.legendItem}><Moon size={13} color="#34345C" /> <b>سهرة</b>: من الساعة 10 مساءً حتى 8 صباحاً</div>
+            <div style={styles.legendItem}><Sun size={13} color="#7A6A2E" /> {t(lang, "morningLegend")}</div>
+            <div style={styles.legendItem}><Moon size={13} color="#34345C" /> {t(lang, "eveningLegend")}</div>
           </div>
           <div style={styles.weekRow}>
-            {WEEKDAYS.map((w) => <div key={w} style={styles.weekDay}>{w}</div>)}
+            {WEEKDAYS_T[lang].map((w) => <div key={w} style={styles.weekDay}>{w}</div>)}
           </div>
           <div style={styles.grid}>
             {cells.map((d, idx) => {
@@ -247,10 +262,10 @@ export default function PublicFarmDetail() {
                   }}
                 >
                   <div className="fc-num" style={styles.dayNum}>{d}</div>
-                  <div style={{ ...styles.slotHalf, background: isPast ? "#DDD6C4" : (dayFree ? "#C9D3A9" : "#E9C9C9") }} title={`نهاري — ${fmtMoney(priceFor(d, "day"))}`}>
+                  <div style={{ ...styles.slotHalf, background: isPast ? "#DDD6C4" : (dayFree ? "#C9D3A9" : "#E9C9C9") }} title={`${t(lang, "morning")} — ${fmtMoneyL(priceFor(d, "day"), lang)}`}>
                     <Sun size={10} color={isPast ? "#A79F8C" : (dayFree ? "#3B4520" : "#7A2E2E")} />
                   </div>
-                  <div style={{ ...styles.slotHalf, background: isPast ? "#CFC8B6" : (nightFree ? "#34345C" : "#7A2E2E") }} title={`سهرة — ${fmtMoney(priceFor(d, "night"))}`}>
+                  <div style={{ ...styles.slotHalf, background: isPast ? "#CFC8B6" : (nightFree ? "#34345C" : "#7A2E2E") }} title={`${t(lang, "evening")} — ${fmtMoneyL(priceFor(d, "night"), lang)}`}>
                     <Moon size={10} color={isPast ? "#A79F8C" : "#EDECF6"} />
                   </div>
                 </div>
@@ -260,32 +275,32 @@ export default function PublicFarmDetail() {
         </div>
 
         <div style={styles.section}>
-          <div style={styles.sectionTitle}>طرق الدفع</div>
+          <div style={styles.sectionTitle}>{t(lang, "paymentMethods")}</div>
           <div style={styles.cliqRow}>
             <div style={styles.cliqIcon}><Landmark size={18} color="#34345C" /></div>
             <div style={{ flex: 1 }}>
               <div style={styles.cliqAlias}>{CLIQ_ALIAS}</div>
-              <div style={styles.cliqBank}>كليك (CliQ) — {CLIQ_BANK}</div>
+              <div style={styles.cliqBank}>{t(lang, "cliqLabel")(CLIQ_BANK)}</div>
             </div>
             <button onClick={copyAlias} style={styles.copyBtn}>
               {aliasCopied ? <Check size={14} /> : <Copy size={14} />}
-              {aliasCopied ? "نسخ!" : "نسخ"}
+              {aliasCopied ? t(lang, "copied") : t(lang, "copy")}
             </button>
           </div>
         </div>
 
         <div style={styles.section}>
-          <div style={styles.sectionTitle}>للتواصل والحجز</div>
+          <div style={styles.sectionTitle}>{t(lang, "contactBooking")}</div>
           <div style={styles.contactRow}>
             <a
               href={`https://wa.me/${CONTACT_PHONE}?text=${encodeURIComponent(`مرحبا، بدي أستفسر عن حجز ${farm.name}`)}`}
               target="_blank" rel="noopener noreferrer"
               style={{ ...styles.contactBtn, ...styles.whatsappBtn }}
             >
-              <MessageCircle size={16} /> واتساب
+              <MessageCircle size={16} /> {t(lang, "whatsapp")}
             </a>
             <a href={`tel:+${CONTACT_PHONE}`} style={{ ...styles.contactBtn, ...styles.callBtn }}>
-              <Phone size={16} /> اتصال
+              <Phone size={16} /> {t(lang, "call")}
             </a>
           </div>
         </div>
@@ -295,8 +310,8 @@ export default function PublicFarmDetail() {
         <div style={styles.dayModalOverlay} onClick={() => setSelectedDay(null)}>
           <div style={styles.dayModal} onClick={(e) => e.stopPropagation()}>
             <div style={styles.dayModalHeader}>
-              <div style={styles.sectionTitle}>{selectedDay} {ARABIC_MONTHS[month]} {year}</div>
-              <button className="pf-nav" onClick={() => setSelectedDay(null)} aria-label="إغلاق"><X size={16} /></button>
+              <div style={styles.sectionTitle}>{selectedDay} {MONTHS[lang][month]} {year}</div>
+              <button className="pf-nav" onClick={() => setSelectedDay(null)} aria-label={t(lang, "close")}><X size={16} /></button>
             </div>
 
             {["day", "night"].map((slot) => {
@@ -311,38 +326,38 @@ export default function PublicFarmDetail() {
                   <div style={styles.dayModalSlotHead}>
                     <span style={styles.dayModalSlotLabelGroup}>
                       {slot === "day" ? <Sun size={14} color="#7A6A2E" /> : <Moon size={14} color="#34345C" />}
-                      <span style={styles.dayModalSlotLabel}>{slot === "day" ? "صباحي" : "سهرة"}</span>
+                      <span style={styles.dayModalSlotLabel}>{slot === "day" ? t(lang, "morning") : t(lang, "evening")}</span>
                     </span>
-                    <span style={{ ...styles.dayModalStatus, color: free ? "#3B4520" : "#791F1F" }}>{free ? "متاح" : "محجوز"}</span>
+                    <span style={{ ...styles.dayModalStatus, color: free ? "#3B4520" : "#791F1F" }}>{free ? t(lang, "available") : t(lang, "booked")}</span>
                   </div>
                   <div style={styles.dayModalSlotRow}>
-                    <span>{fmtTime12(DEFAULT_TIMES[slot].start)} – {fmtTime12(DEFAULT_TIMES[slot].end)}</span>
-                    <span className="fc-num">{fmtMoney(priceFor(selectedDay, slot))}</span>
+                    <span>{fmtTime12L(DEFAULT_TIMES[slot].start, lang)} – {fmtTime12L(DEFAULT_TIMES[slot].end, lang)}</span>
+                    <span className="fc-num">{fmtMoneyL(priceFor(selectedDay, slot), lang)}</span>
                   </div>
                 </div>
               );
             })}
 
             <div style={styles.dayModalPolicy}>
-              <div style={styles.sectionTitle}>طريقة الحجز</div>
+              <div style={styles.sectionTitle}>{t(lang, "bookingPolicy")}</div>
               <ol style={styles.dayModalList}>
-                {BOOKING_RULES.map((rule, i) => <li key={i}>{rule}</li>)}
+                {t(lang, "bookingRules").map((rule, i) => <li key={i}>{rule}</li>)}
               </ol>
             </div>
 
             <div style={styles.dayModalBookingForm}>
-              <div style={styles.sectionTitle}>احجز هالتاريخ</div>
-              {!bookingSlot && <div style={styles.bookingHint}>اختر فترة صباحي أو سهرة فوق أولاً</div>}
+              <div style={styles.sectionTitle}>{t(lang, "bookThisDate")}</div>
+              {!bookingSlot && <div style={styles.bookingHint}>{t(lang, "pickSlotHint")}</div>}
               <input
                 style={styles.bookingInput}
-                placeholder="الاسم"
+                placeholder={t(lang, "namePlaceholder")}
                 value={bookingForm.name}
                 onChange={(e) => setBookingForm({ ...bookingForm, name: e.target.value })}
               />
               <input
                 type="tel"
                 style={styles.bookingInput}
-                placeholder="رقم الجوال"
+                placeholder={t(lang, "phonePlaceholder")}
                 value={bookingForm.phone}
                 onChange={(e) => setBookingForm({ ...bookingForm, phone: e.target.value })}
               />
@@ -350,7 +365,7 @@ export default function PublicFarmDetail() {
                 type="number"
                 min="1"
                 style={styles.bookingInput}
-                placeholder="عدد الأشخاص"
+                placeholder={t(lang, "guestsPlaceholder")}
                 value={bookingForm.guests}
                 onChange={(e) => setBookingForm({ ...bookingForm, guests: e.target.value })}
               />
@@ -358,11 +373,11 @@ export default function PublicFarmDetail() {
                 const { base, extraGuests, extraFee, total } = bookingPriceBreakdown();
                 return (
                   <div style={styles.bookingPriceBox}>
-                    <div style={styles.dayModalSlotRow}><span>السعر الأساسي</span><span className="fc-num">{fmtMoney(base)}</span></div>
+                    <div style={styles.dayModalSlotRow}><span>{t(lang, "basePrice")}</span><span className="fc-num">{fmtMoneyL(base, lang)}</span></div>
                     {extraGuests > 0 && (
-                      <div style={styles.dayModalSlotRow}><span>رسوم {extraGuests} أشخاص إضافيين فوق {prices.guestLimit}</span><span className="fc-num">{fmtMoney(extraFee)}</span></div>
+                      <div style={styles.dayModalSlotRow}><span>{t(lang, "extraGuestsFee")(extraGuests, prices.guestLimit)}</span><span className="fc-num">{fmtMoneyL(extraFee, lang)}</span></div>
                     )}
-                    <div style={{ ...styles.dayModalSlotRow, ...styles.bookingTotalRow }}><span>السعر النهائي</span><span className="fc-num">{fmtMoney(total)}</span></div>
+                    <div style={{ ...styles.dayModalSlotRow, ...styles.bookingTotalRow }}><span>{t(lang, "finalPrice")}</span><span className="fc-num">{fmtMoneyL(total, lang)}</span></div>
                   </div>
                 );
               })()}
@@ -371,7 +386,7 @@ export default function PublicFarmDetail() {
                 disabled={!bookingReady}
                 style={{ ...styles.contactBtn, ...styles.whatsappBtn, ...styles.bookingConfirmBtn, opacity: bookingReady ? 1 : 0.5 }}
               >
-                <MessageCircle size={16} /> تأكيد الحجز عبر واتساب
+                <MessageCircle size={16} /> {t(lang, "confirmBooking")}
               </button>
             </div>
           </div>
@@ -380,7 +395,7 @@ export default function PublicFarmDetail() {
 
       {lightboxIndex !== null && photos[lightboxIndex] && (
         <div style={styles.lightboxOverlay} onClick={() => setLightboxIndex(null)}>
-          <button className="pf-nav" style={styles.lightboxClose} onClick={(e) => { e.stopPropagation(); setLightboxIndex(null); }} aria-label="إغلاق">
+          <button className="pf-nav" style={styles.lightboxClose} onClick={(e) => { e.stopPropagation(); setLightboxIndex(null); }} aria-label={t(lang, "close")}>
             <X size={18} color="#fff" />
           </button>
           <div style={styles.lightboxCounter}>{lightboxIndex + 1} / {photos.length}</div>
@@ -394,10 +409,10 @@ export default function PublicFarmDetail() {
           </div>
           {photos.length > 1 && (
             <>
-              <button style={{ ...styles.lightboxNav, ...styles.lightboxNavRight }} onClick={(e) => { e.stopPropagation(); showNext(); }} aria-label="التالية">
+              <button style={{ ...styles.lightboxNav, ...styles.lightboxNavRight }} onClick={(e) => { e.stopPropagation(); showNext(); }} aria-label={t(lang, "next")}>
                 <ChevronRight size={22} color="#fff" />
               </button>
-              <button style={{ ...styles.lightboxNav, ...styles.lightboxNavLeft }} onClick={(e) => { e.stopPropagation(); showPrev(); }} aria-label="السابقة">
+              <button style={{ ...styles.lightboxNav, ...styles.lightboxNavLeft }} onClick={(e) => { e.stopPropagation(); showPrev(); }} aria-label={t(lang, "prev")}>
                 <ChevronLeft size={22} color="#fff" />
               </button>
             </>
