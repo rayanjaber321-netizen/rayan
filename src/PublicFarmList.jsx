@@ -25,7 +25,7 @@ export default function PublicFarmList() {
     async function load() {
       const [farmsRes, photosRes] = await Promise.all([
         supabase.from("farms").select("*").order("created_at"),
-        supabase.from("farm_photos").select("farm_id, url, is_cover"),
+        supabase.from("farm_photos").select("farm_id, url, is_cover, media_type"),
       ]);
       if (cancelled) return;
       if (farmsRes.error) console.error("farms load error:", farmsRes.error);
@@ -36,7 +36,8 @@ export default function PublicFarmList() {
         photosByFarm[p.farm_id].push(p);
       });
       const withPhotos = (farmsRes.data || []).map((f) => {
-        const farmPhotos = photosByFarm[f.id] || [];
+        // Videos can't render in a small <img> card thumbnail, so the list card only ever picks a photo.
+        const farmPhotos = (photosByFarm[f.id] || []).filter((p) => p.media_type !== "video");
         const cover = farmPhotos.find((p) => p.is_cover)?.url || farmPhotos[0]?.url || null;
         return { ...f, coverPhoto: cover };
       });

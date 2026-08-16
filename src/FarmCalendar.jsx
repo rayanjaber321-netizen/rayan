@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { Sun, Moon, X, Settings, ChevronRight, ChevronLeft, Banknote, CreditCard, Landmark, Trash2, User, Phone, StickyNote, Plus, MapPin, Pencil, RefreshCw, Wallet, LogOut, Star, CalendarDays, Link2, Unlink } from "lucide-react";
+import { Sun, Moon, X, Settings, ChevronRight, ChevronLeft, Banknote, CreditCard, Landmark, Trash2, User, Phone, StickyNote, Plus, MapPin, Pencil, RefreshCw, Wallet, LogOut, Star, CalendarDays, Link2, Unlink, Play } from "lucide-react";
 import { supabase } from "./supabaseClient.js";
 import {
   ARABIC_MONTHS, WEEKDAYS, WEEKDAY_KEYS, DEFAULT_TIMES, farmTimes,
@@ -182,7 +182,7 @@ export default function FarmCalendar() {
       const photosById = {};
       (photosRes.data || []).forEach((row) => {
         photosById[row.farm_id] = photosById[row.farm_id] || [];
-        photosById[row.farm_id].push({ id: row.id, url: row.url, isCover: !!row.is_cover });
+        photosById[row.farm_id].push({ id: row.id, url: row.url, isCover: !!row.is_cover, mediaType: row.media_type || "photo" });
       });
 
       setFarms(loadedFarms);
@@ -506,15 +506,16 @@ export default function FarmCalendar() {
 
   async function uploadPhoto(farmId, file) {
     if (!file) return;
+    const mediaType = file.type.startsWith("video/") ? "video" : "photo";
     setUploadingPhoto(true);
     const path = `${farmId}/${Date.now()}_${file.name}`;
     const { error: upErr } = await supabase.storage.from("farm-photos").upload(path, file);
-    if (upErr) { console.error(upErr); alert("صار خطأ برفع الصورة"); setUploadingPhoto(false); return; }
+    if (upErr) { console.error(upErr); alert("صار خطأ برفع الملف: " + upErr.message); setUploadingPhoto(false); return; }
     const { data: urlData } = supabase.storage.from("farm-photos").getPublicUrl(path);
-    const { data, error } = await supabase.from("farm_photos").insert({ farm_id: farmId, url: urlData.publicUrl }).select().single();
+    const { data, error } = await supabase.from("farm_photos").insert({ farm_id: farmId, url: urlData.publicUrl, media_type: mediaType }).select().single();
     setUploadingPhoto(false);
-    if (error) { console.error(error); alert("صار خطأ بحفظ الصورة"); return; }
-    setPhotos((prev) => ({ ...prev, [farmId]: [...(prev[farmId] || []), { id: data.id, url: data.url }] }));
+    if (error) { console.error(error); alert("صار خطأ بحفظ الملف: " + error.message); return; }
+    setPhotos((prev) => ({ ...prev, [farmId]: [...(prev[farmId] || []), { id: data.id, url: data.url, mediaType }] }));
   }
   async function deletePhoto(farmId, photoId) {
     setPhotos((prev) => ({ ...prev, [farmId]: (prev[farmId] || []).filter((p) => p.id !== photoId) }));
@@ -957,7 +958,14 @@ export default function FarmCalendar() {
                 <div style={styles.photoGrid}>
                   {(photos[pricingFarmId] || []).map((p) => (
                     <div key={p.id} style={{ ...styles.photoThumbWrap, ...(p.isCover ? styles.photoThumbWrapCover : {}) }}>
-                      <img src={p.url} alt="" style={styles.photoThumb} />
+                      {p.mediaType === "video" ? (
+                        <>
+                          <video src={p.url} muted playsInline style={styles.photoThumb} />
+                          <div style={styles.videoThumbBadge}><Play size={11} color="#fff" fill="#fff" /></div>
+                        </>
+                      ) : (
+                        <img src={p.url} alt="" style={styles.photoThumb} />
+                      )}
                       <button
                         className="fc-btn"
                         onClick={() => setCoverPhoto(pricingFarmId, p.id)}
@@ -975,10 +983,10 @@ export default function FarmCalendar() {
                 </div>
 
                 <label className="fc-btn" style={{ ...styles.saveBtn, marginTop: 10, marginRight: 0, textAlign: "center", opacity: uploadingPhoto ? 0.6 : 1 }}>
-                  {uploadingPhoto ? "...جاري الرفع" : "رفع صورة"}
+                  {uploadingPhoto ? "...جاري الرفع" : "رفع صورة أو فيديو"}
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/*,video/*"
                     disabled={uploadingPhoto}
                     onChange={(e) => { uploadPhoto(pricingFarmId, e.target.files[0]); e.target.value = ""; }}
                     style={{ display: "none" }}
@@ -1161,6 +1169,7 @@ const styles = {
   photoThumbWrap: { position: "relative", borderRadius: 8, overflow: "hidden", aspectRatio: "1 / 1", border: "2px solid transparent" },
   photoThumbWrapCover: { borderColor: "#BC6C25" },
   photoThumb: { width: "100%", height: "100%", objectFit: "cover", display: "block" },
+  videoThumbBadge: { position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(15,13,9,0.25)", pointerEvents: "none" },
   photoDeleteBtn: { position: "absolute", top: 3, left: 3, background: "rgba(35,41,31,0.65)", borderRadius: "50%", width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center" },
   photoStarBtn: { position: "absolute", top: 3, right: 3, background: "rgba(35,41,31,0.65)", borderRadius: "50%", width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center" },
   photoStarBtnActive: { background: "rgba(247,243,233,0.9)" },

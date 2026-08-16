@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ChevronRight, ChevronLeft, MapPin, Sun, Moon, ArrowRight, X, MessageCircle, Phone, Copy, Check, Landmark, Share } from "lucide-react";
+import { ChevronRight, ChevronLeft, MapPin, Sun, Moon, ArrowRight, X, MessageCircle, Phone, Copy, Check, Landmark, Share, Play } from "lucide-react";
 
 const CONTACT_PHONE = "962788083859";
 const CLIQ_ALIAS = "A24JAB";
@@ -191,9 +191,16 @@ export default function PublicFarmDetail() {
 
         {photos.length > 0 ? (
           <div style={styles.gallery}>
-            {photos.map((p, idx) => (
-              <img key={p.id} src={p.url} alt={translateFarmName(farm.name, lang)} style={styles.galleryImg} onClick={() => setLightboxIndex(idx)} />
-            ))}
+            {photos.map((p, idx) =>
+              p.media_type === "video" ? (
+                <div key={p.id} style={{ ...styles.galleryImg, position: "relative", padding: 0 }} onClick={() => setLightboxIndex(idx)}>
+                  <video src={p.url} muted playsInline style={{ ...styles.galleryImg, pointerEvents: "none" }} />
+                  <div style={styles.videoPlayBadge}><Play size={16} color="#fff" fill="#fff" /></div>
+                </div>
+              ) : (
+                <img key={p.id} src={p.url} alt={translateFarmName(farm.name, lang)} style={styles.galleryImg} onClick={() => setLightboxIndex(idx)} />
+              )
+            )}
           </div>
         ) : (
           <div style={styles.galleryPlaceholder}>{t(lang, "noPhotos")}</div>
@@ -407,7 +414,11 @@ export default function PublicFarmDetail() {
             onTouchStart={handleLightboxTouchStart}
             onTouchEnd={handleLightboxTouchEnd}
           >
-            <img src={photos[lightboxIndex].url} alt={translateFarmName(farm.name, lang)} style={styles.lightboxImg} />
+            {photos[lightboxIndex].media_type === "video" ? (
+              <video src={photos[lightboxIndex].url} controls autoPlay playsInline style={styles.lightboxImg} />
+            ) : (
+              <img src={photos[lightboxIndex].url} alt={translateFarmName(farm.name, lang)} style={styles.lightboxImg} />
+            )}
           </div>
           {photos.length > 1 && (
             <>
@@ -435,6 +446,7 @@ const styles = {
   langOptionActive: { opacity: 1, background: "#FFFFFF", boxShadow: "0 1px 4px rgba(35,41,31,0.15)" },
   gallery: { display: "flex", gap: 8, overflowX: "auto", marginBottom: 14, borderRadius: 12 },
   galleryImg: { height: 180, width: 260, objectFit: "cover", borderRadius: 12, flexShrink: 0, cursor: "pointer" },
+  videoPlayBadge: { position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(15,13,9,0.25)", borderRadius: 12, pointerEvents: "none" },
   galleryPlaceholder: { height: 140, background: "#F1EEE3", border: "1px dashed #C9C0A8", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", color: "#6B6355", fontSize: 12, marginBottom: 14 },
   title: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 22 },
   location: { fontSize: 13, color: "#6B6355", display: "flex", alignItems: "center", gap: 5, marginTop: 4 },
