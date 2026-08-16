@@ -13,6 +13,11 @@ const PAYMENT_METHODS = [
   { id: "تحويل بنكي", label: "تحويل بنكي", icon: Landmark },
 ];
 const REFERRAL_FEE = 5;
+// علي مالوش أي علاقة بهاي المزارع أساساً — ما بتظهر عمولته إلها بالإعدادات.
+const NO_ALI_COMMISSION_FARMS = ["نخل", "هيثم"];
+function farmHasNoAliCommission(farmName) {
+  return NO_ALI_COMMISSION_FARMS.some((m) => (farmName || "").includes(m));
+}
 
 function bookingFinal(b) {
   return Math.max(0, Number(b.base) + Number(b.extraGuestFee || 0) - Number(b.discount || 0));
@@ -513,7 +518,8 @@ export default function FarmCalendar() {
       nightEnd: draftPrices.nightEnd || DEFAULT_TIMES.night.end,
     };
     // Number.isNaN check (not ||) so a deliberate 0 — meaning "no commission for this farm" — isn't overwritten by the default.
-    const aliFee = Number.isNaN(Number(draftPrices.aliFee)) ? REFERRAL_FEE : Number(draftPrices.aliFee);
+    const pricingFarmName = farms.find((f) => f.id === pricingFarmId)?.name;
+    const aliFee = farmHasNoAliCommission(pricingFarmName) ? 0 : (Number.isNaN(Number(draftPrices.aliFee)) ? REFERRAL_FEE : Number(draftPrices.aliFee));
     const rayanFee = Number.isNaN(Number(draftPrices.rayanFee)) ? REFERRAL_FEE : Number(draftPrices.rayanFee);
     setPrices((prev) => ({ ...prev, [pricingFarmId]: clean }));
     setCommissionSettings((prev) => ({ ...prev, [pricingFarmId]: { aliFee, rayanFee } }));
@@ -751,7 +757,7 @@ export default function FarmCalendar() {
 
               <label className="fc-btn" style={styles.checkboxRow}>
                 <input type="checkbox" checked={!!form.excludeRayanCommission} onChange={(e) => setForm({ ...form, excludeRayanCommission: e.target.checked })} />
-                بدون عمولة ريان بس (علي بياخد عمولته عادي)
+                بدون عمولة ريان
               </label>
 
               <div style={styles.twoCol}>
@@ -972,18 +978,28 @@ export default function FarmCalendar() {
                 </div>
 
                 <div style={styles.priceGroupBlock}>
-                  <div style={styles.priceGroupLabel}>عمولة علي وريان لهاي المزرعة</div>
-                  <div style={styles.twoCol}>
-                    <div style={{ flex: 1 }}>
-                      <label style={styles.label}>عمولة علي لكل حجز (د.أ)</label>
-                      <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.aliFee} onChange={(e) => setDraftPrices({ ...draftPrices, aliFee: e.target.value })} />
-                    </div>
-                    <div style={{ flex: 1 }}>
+                  <div style={styles.priceGroupLabel}>عمولة {farmHasNoAliCommission(farms.find((f) => f.id === pricingFarmId)?.name) ? "ريان" : "علي وريان"} لهاي المزرعة</div>
+                  {farmHasNoAliCommission(farms.find((f) => f.id === pricingFarmId)?.name) ? (
+                    <div>
                       <label style={styles.label}>عمولة ريان لكل حجز (د.أ)</label>
                       <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.rayanFee} onChange={(e) => setDraftPrices({ ...draftPrices, rayanFee: e.target.value })} />
+                      <div style={styles.photoNote}>علي مالوش عمولة بهاي المزرعة أساساً</div>
                     </div>
-                  </div>
-                  <div style={styles.photoNote}>حط 0 عشان تلغي عمولة أي واحد فيهم لهاي المزرعة تحديداً</div>
+                  ) : (
+                    <>
+                      <div style={styles.twoCol}>
+                        <div style={{ flex: 1 }}>
+                          <label style={styles.label}>عمولة علي لكل حجز (د.أ)</label>
+                          <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.aliFee} onChange={(e) => setDraftPrices({ ...draftPrices, aliFee: e.target.value })} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={styles.label}>عمولة ريان لكل حجز (د.أ)</label>
+                          <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.rayanFee} onChange={(e) => setDraftPrices({ ...draftPrices, rayanFee: e.target.value })} />
+                        </div>
+                      </div>
+                      <div style={styles.photoNote}>حط 0 عشان تلغي عمولة أي واحد فيهم لهاي المزرعة تحديداً</div>
+                    </>
+                  )}
                 </div>
 
                 <button className="fc-btn" onClick={savePricing} style={{ ...styles.saveBtn, marginTop: 6, marginRight: 0 }}>حفظ الأسعار</button>
@@ -1116,7 +1132,7 @@ export default function FarmCalendar() {
 
               <div style={styles.priceGroupBlock}>
                 <div style={styles.priceGroupLabel}>رواتب علي وريان</div>
-                {referralCommissions.map((r) => (
+                {referralCommissions.filter((r) => r.fee > 0).map((r) => (
                   <div key={r.label} style={styles.breakdownRow}><span>{r.label} ({r.count} حجز × {fmtMoney(r.fee)})</span><span className="fc-num">{fmtMoney(r.amount)}</span></div>
                 ))}
                 <div style={{ ...styles.breakdownRow, ...styles.breakdownTotal }}><span>المجموع</span><span className="fc-num">{fmtMoney(totalCommissions)}</span></div>
