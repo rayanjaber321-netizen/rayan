@@ -7,7 +7,7 @@ const CLIQ_ALIAS = "A24JAB";
 const CLIQ_BANK = "البنك الإسلامي الأردني";
 import { supabase } from "./supabaseClient.js";
 import {
-  ARABIC_MONTHS, WEEKDAYS, PRICE_GROUPS, DEFAULT_TIMES,
+  ARABIC_MONTHS, WEEKDAYS, PRICE_GROUPS, DEFAULT_TIMES, farmTimes,
   dateKey, fmtMoney, fmtTime12, toDateTime, groupForWeekday, defaultPriceSet, buildMonthGrid, pad,
 } from "./shared.js";
 import { useLang, t, MONTHS, WEEKDAYS_T, PRICE_GROUP_LABELS, translateFarmName } from "./i18n.js";
@@ -59,6 +59,10 @@ export default function PublicFarmDetail() {
           night: { A: pricesRes.data.night_a, B: pricesRes.data.night_b, C: pricesRes.data.night_c },
           guestLimit: pricesRes.data.guest_limit,
           guestFee: pricesRes.data.guest_fee,
+          dayStart: pricesRes.data.day_start || DEFAULT_TIMES.day.start,
+          dayEnd: pricesRes.data.day_end || DEFAULT_TIMES.day.end,
+          nightStart: pricesRes.data.night_start || DEFAULT_TIMES.night.start,
+          nightEnd: pricesRes.data.night_end || DEFAULT_TIMES.night.end,
         });
       }
       setAvailability(availRes.data || []);
@@ -78,7 +82,7 @@ export default function PublicFarmDetail() {
   }
 
   function isOccupied(dateStr, slot) {
-    const defaults = DEFAULT_TIMES[slot];
+    const defaults = farmTimes(prices)[slot];
     const windowStart = toDateTime(dateStr, defaults.start);
     const windowEnd = toDateTime(dateStr, defaults.end);
     if (windowEnd <= windowStart) windowEnd.setDate(windowEnd.getDate() + 1);
@@ -235,8 +239,8 @@ export default function PublicFarmDetail() {
             </button>
           </div>
           <div style={styles.legend}>
-            <div style={styles.legendItem}><Sun size={13} color="#7A6A2E" /> {t(lang, "morningLegend")}</div>
-            <div style={styles.legendItem}><Moon size={13} color="#34345C" /> {t(lang, "eveningLegend")}</div>
+            <div style={styles.legendItem}><Sun size={13} color="#7A6A2E" /> {t(lang, "morningLegend")(fmtTime12L(farmTimes(prices).day.start, lang), fmtTime12L(farmTimes(prices).day.end, lang))}</div>
+            <div style={styles.legendItem}><Moon size={13} color="#34345C" /> {t(lang, "eveningLegend")(fmtTime12L(farmTimes(prices).night.start, lang), fmtTime12L(farmTimes(prices).night.end, lang))}</div>
           </div>
           <div style={styles.weekRow}>
             {WEEKDAYS_T[lang].map((w) => <div key={w} style={styles.weekDay}>{w}</div>)}
@@ -329,7 +333,7 @@ export default function PublicFarmDetail() {
                     <span style={{ ...styles.dayModalStatus, color: free ? "#3B4520" : "#791F1F" }}>{free ? t(lang, "available") : t(lang, "booked")}</span>
                   </div>
                   <div style={styles.dayModalSlotRow}>
-                    <span>{fmtTime12L(DEFAULT_TIMES[slot].start, lang)} – {fmtTime12L(DEFAULT_TIMES[slot].end, lang)}</span>
+                    <span>{fmtTime12L(farmTimes(prices)[slot].start, lang)} – {fmtTime12L(farmTimes(prices)[slot].end, lang)}</span>
                     <span className="fc-num">{fmtMoneyL(priceFor(selectedDay, slot), lang)}</span>
                   </div>
                 </div>

@@ -2,6 +2,8 @@ import { calendarClientFromRefreshToken } from "../_lib/googleAuth.js";
 import { supabaseAdmin } from "../_lib/supabaseAdmin.js";
 import { bestSlotForEvent } from "../_lib/slotMatch.js";
 
+const DEFAULT_TIMES = { day: { start: "10:00", end: "21:00" }, night: { start: "22:00", end: "08:00" } };
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).end();
@@ -49,6 +51,16 @@ export default async function handler(req, res) {
 async function syncFarmCalendar(db, conn) {
   const calendar = calendarClientFromRefreshToken(conn.refresh_token);
   const calendarId = conn.calendar_id || "primary";
+
+  const { data: priceRow } = await db
+    .from("farm_prices")
+    .select("day_start, day_end, night_start, night_end")
+    .eq("farm_id", conn.farm_id)
+    .maybeSingle();
+  const times = {
+    day: { start: priceRow?.day_start || DEFAULT_TIMES.day.start, end: priceRow?.day_end || DEFAULT_TIMES.day.end },
+    night: { start: priceRow?.night_start || DEFAULT_TIMES.night.start, end: priceRow?.night_end || DEFAULT_TIMES.night.end },
+  };
 
   let events = [];
   let nextSyncToken = null;
@@ -103,7 +115,7 @@ async function syncFarmCalendar(db, conn) {
       continue;
     }
 
-    const match = bestSlotForEvent(start, end);
+    const match = bestSlotForEvent(start, end, times);
     if (!match) {
       console.log(`[calendar-webhook] skipping event ${event.id} — no overlapping day/night slot`);
       continue;

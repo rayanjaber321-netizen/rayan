@@ -2,8 +2,8 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Sun, Moon, X, Settings, ChevronRight, ChevronLeft, Banknote, CreditCard, Landmark, Trash2, User, Phone, StickyNote, Plus, MapPin, Pencil, RefreshCw, Wallet, LogOut, Star, CalendarDays, Link2, Unlink } from "lucide-react";
 import { supabase } from "./supabaseClient.js";
 import {
-  ARABIC_MONTHS, WEEKDAYS, PRICE_GROUPS, DEFAULT_TIMES,
-  pad, dateKey, fmtMoney, fmtTime12, fmtDateShort, toDateTime, addDays,
+  ARABIC_MONTHS, WEEKDAYS, PRICE_GROUPS, DEFAULT_TIMES, farmTimes,
+  pad, dateKey, fmtMoney, fmtTime12, fmtTime12Short, fmtDateShort, toDateTime, addDays,
   groupForWeekday, defaultPriceSet, buildMonthGrid,
 } from "./shared.js";
 
@@ -29,6 +29,10 @@ function priceRowToApp(row) {
     night: { A: row.night_a, B: row.night_b, C: row.night_c },
     guestLimit: row.guest_limit,
     guestFee: row.guest_fee,
+    dayStart: row.day_start || DEFAULT_TIMES.day.start,
+    dayEnd: row.day_end || DEFAULT_TIMES.day.end,
+    nightStart: row.night_start || DEFAULT_TIMES.night.start,
+    nightEnd: row.night_end || DEFAULT_TIMES.night.end,
   };
 }
 function priceAppToRow(farmId, p) {
@@ -37,6 +41,8 @@ function priceAppToRow(farmId, p) {
     day_a: Number(p.day.A) || 0, day_b: Number(p.day.B) || 0, day_c: Number(p.day.C) || 0,
     night_a: Number(p.night.A) || 0, night_b: Number(p.night.B) || 0, night_c: Number(p.night.C) || 0,
     guest_limit: Number(p.guestLimit) || 0, guest_fee: Number(p.guestFee) || 0,
+    day_start: p.dayStart || DEFAULT_TIMES.day.start, day_end: p.dayEnd || DEFAULT_TIMES.day.end,
+    night_start: p.nightStart || DEFAULT_TIMES.night.start, night_end: p.nightEnd || DEFAULT_TIMES.night.end,
   };
 }
 function bookingRowToApp(row) {
@@ -311,7 +317,7 @@ export default function FarmCalendar() {
     const exact = farmBookings[exactKey];
     if (exact) return { key: exactKey, booking: exact, isPrimary: true };
 
-    const defaults = DEFAULT_TIMES[slot];
+    const defaults = farmTimes(farmPrices)[slot];
     const windowStart = toDateTime(dateStr, defaults.start);
     const windowEnd = toDateTime(dateStr, defaults.end);
     if (windowEnd <= windowStart) windowEnd.setDate(windowEnd.getDate() + 1);
@@ -340,7 +346,7 @@ export default function FarmCalendar() {
     const dateStr = dateKey(year, month, day);
     const key = `${dateStr}_${slot}`;
     const existing = farmBookings[key];
-    const defaults = DEFAULT_TIMES[slot];
+    const defaults = farmTimes(farmPrices)[slot];
     const endDateStr = defaults.end <= defaults.start ? addDays(dateStr, 1) : dateStr;
     setForm(existing ? { ...emptyForm, ...existing } : { ...emptyForm, base: priceFor(day, slot), startDate: dateStr, startTime: defaults.start, endDate: endDateStr, endTime: defaults.end });
     setModal({ key, slot, day });
@@ -482,6 +488,10 @@ export default function FarmCalendar() {
       night: { A: Number(draftPrices.night.A) || 0, B: Number(draftPrices.night.B) || 0, C: Number(draftPrices.night.C) || 0 },
       guestLimit: Number(draftPrices.guestLimit) || 0,
       guestFee: Number(draftPrices.guestFee) || 0,
+      dayStart: draftPrices.dayStart || DEFAULT_TIMES.day.start,
+      dayEnd: draftPrices.dayEnd || DEFAULT_TIMES.day.end,
+      nightStart: draftPrices.nightStart || DEFAULT_TIMES.night.start,
+      nightEnd: draftPrices.nightEnd || DEFAULT_TIMES.night.end,
     };
     setPrices((prev) => ({ ...prev, [pricingFarmId]: clean }));
     setSettingsOpen(false);
@@ -597,8 +607,8 @@ export default function FarmCalendar() {
       </div>
 
       <div style={styles.legend}>
-        <div style={styles.legendItem}><Sun size={13} color="#4E5A31" /><span>نهاري 10ص–9م</span></div>
-        <div style={styles.legendItem}><Moon size={13} color="#34345C" /><span>سهرة 10م–8ص</span></div>
+        <div style={styles.legendItem}><Sun size={13} color="#4E5A31" /><span>نهاري {fmtTime12Short(farmTimes(farmPrices).day.start)}–{fmtTime12Short(farmTimes(farmPrices).day.end)}</span></div>
+        <div style={styles.legendItem}><Moon size={13} color="#34345C" /><span>سهرة {fmtTime12Short(farmTimes(farmPrices).night.start)}–{fmtTime12Short(farmTimes(farmPrices).night.end)}</span></div>
         <button className="fc-btn" onClick={() => openPricingTab(selectedFarmId)} style={styles.legendPriceBtn}>الأسعار</button>
       </div>
 
@@ -899,6 +909,30 @@ export default function FarmCalendar() {
                     <div style={{ flex: 1 }}>
                       <label style={styles.label}>رسوم كل شخص إضافي (د.أ)</label>
                       <input className="fc-input fc-num" type="number" style={styles.input} value={draftPrices.guestFee} onChange={(e) => setDraftPrices({ ...draftPrices, guestFee: e.target.value })} />
+                    </div>
+                  </div>
+                </div>
+
+                <div style={styles.priceGroupBlock}>
+                  <div style={styles.priceGroupLabel}>مواعيد الفترتين</div>
+                  <div style={styles.twoCol}>
+                    <div style={{ flex: 1 }}>
+                      <label style={styles.label}><Sun size={12} /> بداية النهاري</label>
+                      <input className="fc-input fc-num" type="time" style={styles.input} value={draftPrices.dayStart} onChange={(e) => setDraftPrices({ ...draftPrices, dayStart: e.target.value })} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={styles.label}><Sun size={12} /> نهاية النهاري</label>
+                      <input className="fc-input fc-num" type="time" style={styles.input} value={draftPrices.dayEnd} onChange={(e) => setDraftPrices({ ...draftPrices, dayEnd: e.target.value })} />
+                    </div>
+                  </div>
+                  <div style={styles.twoCol}>
+                    <div style={{ flex: 1 }}>
+                      <label style={styles.label}><Moon size={12} /> بداية السهرة</label>
+                      <input className="fc-input fc-num" type="time" style={styles.input} value={draftPrices.nightStart} onChange={(e) => setDraftPrices({ ...draftPrices, nightStart: e.target.value })} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={styles.label}><Moon size={12} /> نهاية السهرة</label>
+                      <input className="fc-input fc-num" type="time" style={styles.input} value={draftPrices.nightEnd} onChange={(e) => setDraftPrices({ ...draftPrices, nightEnd: e.target.value })} />
                     </div>
                   </div>
                 </div>

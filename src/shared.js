@@ -9,6 +9,12 @@ export const DEFAULT_TIMES = {
   day: { start: "10:00", end: "21:00" },
   night: { start: "22:00", end: "08:00" },
 };
+export function farmTimes(prices) {
+  return {
+    day: { start: prices?.dayStart || DEFAULT_TIMES.day.start, end: prices?.dayEnd || DEFAULT_TIMES.day.end },
+    night: { start: prices?.nightStart || DEFAULT_TIMES.night.start, end: prices?.nightEnd || DEFAULT_TIMES.night.end },
+  };
+}
 
 export function pad(n) { return String(n).padStart(2, "0"); }
 export function dateKey(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
@@ -18,6 +24,12 @@ export function fmtTime12(hhmm) {
   const period = h < 12 ? "صباحًا" : "مساءً";
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${h12}:${pad(m)} ${period}`;
+}
+export function fmtTime12Short(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  const period = h < 12 ? "ص" : "م";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return m === 0 ? `${h12}${period}` : `${h12}:${pad(m)}${period}`;
 }
 export function fmtDateShort(dateStr) {
   const [, m, d] = dateStr.split("-").map(Number);
@@ -39,7 +51,10 @@ export function groupForWeekday(weekday) {
   return "A";
 }
 export function defaultPriceSet() {
-  return { day: { A: 100, B: 130, C: 160 }, night: { A: 150, B: 180, C: 220 }, guestLimit: 15, guestFee: 5 };
+  return {
+    day: { A: 100, B: 130, C: 160 }, night: { A: 150, B: 180, C: 220 }, guestLimit: 15, guestFee: 5,
+    dayStart: "10:00", dayEnd: "21:00", nightStart: "22:00", nightEnd: "08:00",
+  };
 }
 export function buildMonthGrid(year, month) {
   const firstDay = new Date(year, month, 1);
