@@ -53,19 +53,29 @@ export default function PublicFarmList() {
     <div dir={lang === "ar" ? "rtl" : "ltr"} style={styles.page}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Tajawal:wght@400;500;700&display=swap');
-        .fj-card { transition: transform .25s ease, box-shadow .25s ease; -webkit-tap-highlight-color: transparent; }
-        .fj-card:active { transform: scale(0.96); }
-        .fj-glass { transition: transform .2s ease; -webkit-tap-highlight-color: transparent; }
-        .fj-glass:active { transform: scale(0.92); }
+        * { -webkit-font-smoothing: antialiased; }
+        @keyframes fjFadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fjFadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+        .fj-card { transition: transform .3s cubic-bezier(.2,.8,.2,1), box-shadow .3s ease; -webkit-tap-highlight-color: transparent; animation: fjFadeUp .7s cubic-bezier(.2,.8,.2,1) both; }
+        .fj-card:active { transform: scale(0.955); }
+        .fj-glass { transition: transform .2s ease, background .2s ease; -webkit-tap-highlight-color: transparent; }
+        .fj-glass:active { transform: scale(0.9); }
+        .fj-header { animation: fjFadeIn .7s ease both; }
       `}</style>
 
-      <div style={styles.header}>
+      <div className="fj-header" style={styles.header}>
         <div style={styles.brandRow}>
           <div style={styles.logoGlow} />
-          <img src="/icons/icon-192.png" alt="" style={styles.logo} />
+          <div style={styles.logoRing}>
+            <img src="/icons/icon-192.png" alt="" style={styles.logo} />
+          </div>
         </div>
         <div style={styles.title}>Farms Jo</div>
-        <div style={styles.titleRule} />
+        <div style={styles.titleRule}>
+          <span style={styles.titleRuleLine} />
+          <span style={styles.titleRuleDot} />
+          <span style={styles.titleRuleLine} />
+        </div>
         <div style={styles.subtitle}>{t(lang, "subtitle")}</div>
       </div>
 
@@ -82,19 +92,25 @@ export default function PublicFarmList() {
       {farms !== null && farms.length === 0 && <div style={styles.loading}>{t(lang, "noFarms")}</div>}
 
       <div style={styles.grid}>
-        {(farms || []).map((f) => (
-          <Link key={f.id} to={`/farm/${f.id}`} className="fj-card" style={styles.card}>
+        {(farms || []).map((f, idx) => (
+          <Link
+            key={f.id}
+            to={`/farm/${f.id}`}
+            className="fj-card"
+            style={{ ...styles.card, animationDelay: `${idx * 70}ms` }}
+          >
             {f.coverPhoto ? (
               <img src={f.coverPhoto} alt={f.name} style={{ ...styles.cardImg, objectPosition: `center ${f.coverCropPosition}%` }} />
             ) : (
               <div style={styles.cardImgPlaceholder} />
             )}
             <div style={styles.cardScrim} />
+            <div style={styles.cardShine} />
             <div style={styles.cardBody}>
               <div style={styles.cardName}>{translateFarmName(f.name, lang)}</div>
               {f.location && (
                 <div style={styles.cardLoc}>
-                  <MapPin size={11} /> {f.location}
+                  <MapPin size={10} /> {f.location}
                 </div>
               )}
             </div>
@@ -108,54 +124,71 @@ export default function PublicFarmList() {
 const styles = {
   page: {
     fontFamily: "'Tajawal', sans-serif",
-    background: "linear-gradient(180deg, #F6F1E5 0%, #EBE3CD 55%, #E4DABF 100%)",
+    background: "radial-gradient(circle at 50% 0%, #F8F3E7 0%, #EFE7D2 45%, #E2D7BB 100%)",
     color: "#20261B",
     minHeight: "100svh",
-    padding: "28px 16px 44px",
+    padding: "32px 16px 48px",
     boxSizing: "border-box",
     touchAction: "manipulation",
   },
-  header: { maxWidth: 480, margin: "0 auto 26px", textAlign: "center" },
-  brandRow: { position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 },
+  header: { maxWidth: 480, margin: "0 auto 30px", textAlign: "center" },
+  brandRow: { position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 },
   logoGlow: {
     position: "absolute",
-    width: 130,
-    height: 130,
+    width: 170,
+    height: 170,
     borderRadius: "50%",
-    background: "radial-gradient(circle, rgba(130,173,87,0.35) 0%, rgba(130,173,87,0) 70%)",
+    background: "radial-gradient(circle, rgba(130,173,87,0.4) 0%, rgba(188,108,37,0.12) 55%, rgba(130,173,87,0) 75%)",
   },
-  logo: { position: "relative", width: 84, height: 84, borderRadius: 22, boxShadow: "0 14px 28px -10px rgba(35,41,31,0.4)", border: "1px solid rgba(255,255,255,0.6)" },
-  title: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 30, letterSpacing: "-0.3px", color: "#1D2317" },
-  titleRule: { width: 40, height: 3, borderRadius: 3, background: "linear-gradient(90deg, #BC6C25, #E3A34E)", margin: "10px auto 0" },
-  subtitle: { fontSize: 13.5, color: "#6B6355", marginTop: 10, fontWeight: 500 },
+  logoRing: {
+    position: "relative",
+    padding: 4,
+    borderRadius: 26,
+    background: "linear-gradient(135deg, #E3A34E, #BC6C25)",
+    boxShadow: "0 18px 34px -12px rgba(35,41,31,0.45)",
+  },
+  logo: { display: "block", width: 84, height: 84, borderRadius: 22, border: "2px solid #F8F3E7" },
+  title: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 34, letterSpacing: "-0.6px", color: "#1A2014" },
+  titleRule: { display: "flex", alignItems: "center", justifyContent: "center", gap: 8, margin: "12px auto 0" },
+  titleRuleLine: { width: 26, height: 2, borderRadius: 2, background: "linear-gradient(90deg, rgba(188,108,37,0), #BC6C25)" },
+  titleRuleDot: { width: 5, height: 5, borderRadius: "50%", background: "#BC6C25" },
+  subtitle: { fontSize: 14, color: "#6B6355", marginTop: 12, fontWeight: 500, letterSpacing: "0.1px" },
   shareBtn: {
     position: "fixed", top: 16, left: 16, zIndex: 60,
     display: "flex", alignItems: "center", justifyContent: "center",
-    width: 40, height: 40, border: "1px solid rgba(255,255,255,0.6)",
-    background: "rgba(247,243,233,0.65)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+    width: 42, height: 42, border: "1px solid rgba(255,255,255,0.7)",
+    background: "rgba(250,246,236,0.55)", backdropFilter: "blur(16px) saturate(1.4)", WebkitBackdropFilter: "blur(16px) saturate(1.4)",
     borderRadius: "50%", color: "#3A3428", cursor: "pointer",
-    boxShadow: "0 6px 16px -6px rgba(35,29,16,0.3)",
+    boxShadow: "0 10px 22px -8px rgba(35,29,16,0.35), inset 0 1px 0 rgba(255,255,255,0.6)",
   },
   langSwitch: {
     position: "fixed", top: 16, right: 16, zIndex: 60, display: "flex", gap: 2,
-    border: "1px solid rgba(255,255,255,0.6)", background: "rgba(247,243,233,0.65)",
-    backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-    borderRadius: 24, padding: 3, boxShadow: "0 6px 16px -6px rgba(35,29,16,0.3)",
+    border: "1px solid rgba(255,255,255,0.7)", background: "rgba(250,246,236,0.55)",
+    backdropFilter: "blur(16px) saturate(1.4)", WebkitBackdropFilter: "blur(16px) saturate(1.4)",
+    borderRadius: 26, padding: 4,
+    boxShadow: "0 10px 22px -8px rgba(35,29,16,0.35), inset 0 1px 0 rgba(255,255,255,0.6)",
   },
   langOption: { display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: "50%", border: "none", background: "transparent", fontSize: 16, cursor: "pointer", opacity: 0.4, transition: "opacity .2s, background .2s" },
-  langOptionActive: { opacity: 1, background: "#FFFFFF", boxShadow: "0 2px 6px rgba(35,41,31,0.18)" },
+  langOptionActive: { opacity: 1, background: "#FFFFFF", boxShadow: "0 3px 8px rgba(35,41,31,0.2)" },
   loading: { textAlign: "center", color: "#6B6355", padding: 30 },
-  grid: { maxWidth: 480, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14 },
+  grid: { maxWidth: 480, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 },
   card: {
     position: "relative", display: "block", textDecoration: "none", color: "inherit",
-    borderRadius: 20, overflow: "hidden", aspectRatio: "4 / 5",
-    boxShadow: "0 16px 30px -14px rgba(30,25,12,0.45)",
-    border: "1px solid rgba(255,255,255,0.5)",
+    borderRadius: 26, overflow: "hidden", aspectRatio: "4 / 5",
+    boxShadow: "0 3px 6px -2px rgba(30,25,12,0.2), 0 26px 40px -20px rgba(30,25,12,0.55)",
+    border: "1px solid rgba(255,255,255,0.4)",
   },
   cardImg: { position: "absolute", inset: 0, display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 75%" },
   cardImgPlaceholder: { position: "absolute", inset: 0, background: "#DAD3BE" },
-  cardScrim: { position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(16,13,6,0.88) 0%, rgba(16,13,6,0.32) 42%, rgba(16,13,6,0) 65%)" },
-  cardBody: { position: "absolute", left: 0, right: 0, bottom: 0, padding: "14px 12px" },
-  cardName: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 15.5, color: "#FFFFFF", textShadow: "0 2px 8px rgba(0,0,0,0.35)" },
-  cardLoc: { fontSize: 11, color: "rgba(255,255,255,0.88)", display: "flex", alignItems: "center", gap: 4, marginTop: 4 },
+  cardScrim: { position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(10,12,6,0) 30%, rgba(9,10,5,0.55) 68%, rgba(7,8,4,0.92) 100%)" },
+  cardShine: { position: "absolute", top: 0, left: 0, right: 0, height: "40%", background: "linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0))", pointerEvents: "none" },
+  cardBody: { position: "absolute", left: 0, right: 0, bottom: 0, padding: "16px 13px" },
+  cardName: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 16.5, letterSpacing: "-0.2px", color: "#FFFFFF", textShadow: "0 2px 10px rgba(0,0,0,0.4)" },
+  cardLoc: {
+    display: "inline-flex", alignItems: "center", gap: 4, marginTop: 8,
+    fontSize: 10.5, color: "rgba(255,255,255,0.92)", fontWeight: 500,
+    background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.22)",
+    backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)",
+    borderRadius: 999, padding: "3px 9px",
+  },
 };
