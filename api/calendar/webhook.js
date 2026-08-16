@@ -77,12 +77,16 @@ async function syncFarmCalendar(db, conn) {
     }
   }
 
+  console.log(`[calendar-webhook] farm=${conn.farm_id} events=${events.length}`);
+
   for (const event of events) {
     const isAppEvent = !!event.extendedProperties?.private?.farmsJoSlotKey;
+    console.log(`[calendar-webhook] event id=${event.id} status=${event.status} summary=${event.summary} isAppEvent=${isAppEvent} start=${event.start?.dateTime} end=${event.end?.dateTime}`);
 
     if (event.status === "cancelled") {
       // The event is gone from Google Calendar either way — free the slot on the site.
-      await db.from("bookings").delete().eq("farm_id", conn.farm_id).eq("google_event_id", event.id);
+      const { error: delErr } = await db.from("bookings").delete().eq("farm_id", conn.farm_id).eq("google_event_id", event.id);
+      if (delErr) console.error("[calendar-webhook] delete (cancelled) failed:", delErr.message);
       continue;
     }
 
@@ -90,20 +94,30 @@ async function syncFarmCalendar(db, conn) {
 
     const start = event.start?.dateTime;
     const end = event.end?.dateTime;
-    if (!start || !end) continue; // skip all-day events, no slot to map them to
+    if (!start || !end) {
+      console.log(`[calendar-webhook] skipping event ${event.id} — no dateTime (all-day event)`);
+      continue;
+    }
 
     const match = bestSlotForEvent(start, end);
-    if (!match) continue;
+    if (!match) {
+      console.log(`[calendar-webhook] skipping event ${event.id} — no overlapping day/night slot`);
+      continue;
+    }
 
-    const { data: existing } = await db
+    const { data: existing, error: existingErr } = await db
       .from("bookings")
       .select("google_event_id")
       .eq("farm_id", conn.farm_id)
       .eq("slot_key", match.slotKey)
       .maybeSingle();
+    if (existingErr) console.error("[calendar-webhook] existing lookup failed:", existingErr.message);
     // Slot already holds a different booking (a real customer booking, or another
     // Google event) — never clobber it, just leave the site's existing data as-is.
-    if (existing && existing.google_event_id !== event.id) continue;
+    if (existing && existing.google_event_id !== event.id) {
+      console.log(`[calendar-webhook] skipping event ${event.id} — slot ${match.slotKey} already taken by a different booking`);
+      continue;
+    }
 
     // The event may have moved to a different date/slot since we last saw it.
     await db
@@ -113,23 +127,34 @@ async function syncFarmCalendar(db, conn) {
       .eq("google_event_id", event.id)
       .neq("slot_key", match.slotKey);
 
-    await db.from("bookings").upsert(
+    const { error: upsertErr } = await db.from("bookings").upsert(
       {
         farm_id: conn.farm_id,
         slot_key: match.slotKey,
         customer: event.summary || "حجز من قوقل كالندر",
         phone: "",
         base: 0,
+        discount: 0,
+        discount_reason: "",
         start_date: match.startDate,
         start_time: match.startTime,
         end_date: match.endDate,
         end_time: match.endTime,
         guest_count: 0,
+        extra_guest_fee: 0,
+        deposit_amount: 0,
+        deposit_method: "نقدي",
+        remaining_method: "نقدي",
+        remaining_settled: false,
+        exclude_commission: false,
+        notes: "مضاف تلقائياً من قوقل كالندر",
         google_event_id: event.id,
         source: "google",
       },
       { onConflict: "farm_id,slot_key" }
     );
+    if (upsertErr) console.error(`[calendar-webhook] upsert failed for event ${event.id}:`, upsertErr.message);
+    else console.log(`[calendar-webhook] booked slot ${match.slotKey} from event ${event.id}`);
   }
 
   if (nextSyncToken) {
