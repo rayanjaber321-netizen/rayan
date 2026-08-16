@@ -199,7 +199,7 @@ export default function PublicFarmDetail() {
                   <div style={styles.videoPlayBadge}><Play size={16} color="#fff" fill="#fff" /></div>
                 </div>
               ) : (
-                <img key={p.id} src={p.url} alt={translateFarmName(farm.name, lang)} style={styles.galleryImg} onClick={() => setLightboxIndex(idx)} />
+                <img key={p.id} src={p.url} alt={translateFarmName(farm.name, lang)} style={{ ...styles.galleryImg, objectPosition: `center ${p.crop_position ?? 50}%` }} onClick={() => setLightboxIndex(idx)} />
               )
             )}
           </div>

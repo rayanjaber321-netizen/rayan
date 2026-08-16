@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { Sun, Moon, X, Settings, ChevronRight, ChevronLeft, Banknote, CreditCard, Landmark, Trash2, User, Phone, StickyNote, Plus, MapPin, Pencil, RefreshCw, Wallet, LogOut, Star, CalendarDays, Link2, Unlink, Play } from "lucide-react";
+import { Sun, Moon, X, Settings, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Banknote, CreditCard, Landmark, Trash2, User, Phone, StickyNote, Plus, MapPin, Pencil, RefreshCw, Wallet, LogOut, Star, CalendarDays, Link2, Unlink, Play } from "lucide-react";
 import { supabase } from "./supabaseClient.js";
 import {
   ARABIC_MONTHS, WEEKDAYS, WEEKDAY_KEYS, DEFAULT_TIMES, farmTimes,
@@ -189,7 +189,7 @@ export default function FarmCalendar() {
       const photosById = {};
       (photosRes.data || []).forEach((row) => {
         photosById[row.farm_id] = photosById[row.farm_id] || [];
-        photosById[row.farm_id].push({ id: row.id, url: row.url, isCover: !!row.is_cover, mediaType: row.media_type || "photo" });
+        photosById[row.farm_id].push({ id: row.id, url: row.url, isCover: !!row.is_cover, mediaType: row.media_type || "photo", cropPosition: row.crop_position ?? 75 });
       });
       const commissionById = {};
       (commissionRes.data || []).forEach((row) => { commissionById[row.farm_id] = { aliFee: row.ali_fee ?? REFERRAL_FEE, rayanFee: row.rayan_fee ?? REFERRAL_FEE }; });
@@ -541,7 +541,7 @@ export default function FarmCalendar() {
     const { data, error } = await supabase.from("farm_photos").insert({ farm_id: farmId, url: urlData.publicUrl, media_type: mediaType }).select().single();
     setUploadingPhoto(false);
     if (error) { console.error(error); alert("صار خطأ بحفظ الملف: " + error.message); return; }
-    setPhotos((prev) => ({ ...prev, [farmId]: [...(prev[farmId] || []), { id: data.id, url: data.url, mediaType }] }));
+    setPhotos((prev) => ({ ...prev, [farmId]: [...(prev[farmId] || []), { id: data.id, url: data.url, mediaType, cropPosition: 75 }] }));
   }
   async function deletePhoto(farmId, photoId) {
     setPhotos((prev) => ({ ...prev, [farmId]: (prev[farmId] || []).filter((p) => p.id !== photoId) }));
@@ -557,6 +557,14 @@ export default function FarmCalendar() {
     if (clearErr) { console.error(clearErr); alert("صار خطأ بتعيين صورة الغلاف: " + clearErr.message); return; }
     const { error: setErr } = await supabase.from("farm_photos").update({ is_cover: true }).eq("id", photoId);
     if (setErr) { console.error(setErr); alert("صار خطأ بتعيين صورة الغلاف: " + setErr.message); }
+  }
+  async function setCropPosition(farmId, photoId, position) {
+    setPhotos((prev) => ({
+      ...prev,
+      [farmId]: (prev[farmId] || []).map((p) => (p.id === photoId ? { ...p, cropPosition: position } : p)),
+    }));
+    const { error } = await supabase.from("farm_photos").update({ crop_position: position }).eq("id", photoId);
+    if (error) console.error(error);
   }
 
   const final = Math.max(0, Number(form.base || 0) + Number(form.extraGuestFee || 0) - Number(form.discount || 0));
@@ -1013,30 +1021,38 @@ export default function FarmCalendar() {
                   {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
 
-                <div style={styles.photoNote}>دوس نجمة الصورة عشان تصير هي صورة الغلاف يلي بتظهر بالواجهة العامة</div>
+                <div style={styles.photoNote}>دوس نجمة الصورة عشان تصير هي صورة الغلاف يلي بتظهر بالواجهة العامة. لو الصورة مقصوصة غلط (طالعة أكثر من فوق أو تحت)، استخدم الأسهم عشان تظبطها</div>
                 <div style={styles.photoGrid}>
                   {(photos[pricingFarmId] || []).map((p) => (
-                    <div key={p.id} style={{ ...styles.photoThumbWrap, ...(p.isCover ? styles.photoThumbWrapCover : {}) }}>
-                      {p.mediaType === "video" ? (
-                        <>
-                          <video src={p.url} muted playsInline style={styles.photoThumb} />
-                          <div style={styles.videoThumbBadge}><Play size={11} color="#fff" fill="#fff" /></div>
-                        </>
-                      ) : (
-                        <img src={p.url} alt="" style={styles.photoThumb} />
+                    <div key={p.id}>
+                      <div style={{ ...styles.photoThumbWrap, ...(p.isCover ? styles.photoThumbWrapCover : {}) }}>
+                        {p.mediaType === "video" ? (
+                          <>
+                            <video src={p.url} muted playsInline style={styles.photoThumb} />
+                            <div style={styles.videoThumbBadge}><Play size={11} color="#fff" fill="#fff" /></div>
+                          </>
+                        ) : (
+                          <img src={p.url} alt="" style={{ ...styles.photoThumb, objectPosition: `center ${p.cropPosition}%` }} />
+                        )}
+                        <button
+                          className="fc-btn"
+                          onClick={() => setCoverPhoto(pricingFarmId, p.id)}
+                          style={{ ...styles.photoStarBtn, ...(p.isCover ? styles.photoStarBtnActive : {}) }}
+                          aria-label="تعيين كصورة رئيسية"
+                          title="تعيين كصورة رئيسية"
+                        >
+                          <Star size={12} color={p.isCover ? "#BC6C25" : "#FFFFFF"} fill={p.isCover ? "#BC6C25" : "none"} />
+                        </button>
+                        <button className="fc-btn" onClick={() => deletePhoto(pricingFarmId, p.id)} style={styles.photoDeleteBtn} aria-label="حذف">
+                          <X size={12} color="#FFFFFF" />
+                        </button>
+                      </div>
+                      {p.mediaType !== "video" && (
+                        <div style={styles.cropRow}>
+                          <button className="fc-btn" onClick={() => setCropPosition(pricingFarmId, p.id, Math.max(0, p.cropPosition - 15))} style={styles.cropBtn} aria-label="اعرض أعلى الصورة"><ChevronUp size={12} /></button>
+                          <button className="fc-btn" onClick={() => setCropPosition(pricingFarmId, p.id, Math.min(100, p.cropPosition + 15))} style={styles.cropBtn} aria-label="اعرض أسفل الصورة"><ChevronDown size={12} /></button>
+                        </div>
                       )}
-                      <button
-                        className="fc-btn"
-                        onClick={() => setCoverPhoto(pricingFarmId, p.id)}
-                        style={{ ...styles.photoStarBtn, ...(p.isCover ? styles.photoStarBtnActive : {}) }}
-                        aria-label="تعيين كصورة رئيسية"
-                        title="تعيين كصورة رئيسية"
-                      >
-                        <Star size={12} color={p.isCover ? "#BC6C25" : "#FFFFFF"} fill={p.isCover ? "#BC6C25" : "none"} />
-                      </button>
-                      <button className="fc-btn" onClick={() => deletePhoto(pricingFarmId, p.id)} style={styles.photoDeleteBtn} aria-label="حذف">
-                        <X size={12} color="#FFFFFF" />
-                      </button>
                     </div>
                   ))}
                 </div>
@@ -1229,6 +1245,8 @@ const styles = {
   photoThumbWrapCover: { borderColor: "#BC6C25" },
   photoThumb: { width: "100%", height: "100%", objectFit: "cover", display: "block" },
   videoThumbBadge: { position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(15,13,9,0.25)", pointerEvents: "none" },
+  cropRow: { display: "flex", justifyContent: "center", gap: 4, marginTop: 3 },
+  cropBtn: { display: "flex", alignItems: "center", justifyContent: "center", width: 24, height: 20, border: "1px solid #DAD3BE", background: "#F7F3E9", borderRadius: 5, color: "#4A453A", cursor: "pointer" },
   photoDeleteBtn: { position: "absolute", top: 3, left: 3, background: "rgba(35,41,31,0.65)", borderRadius: "50%", width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center" },
   photoStarBtn: { position: "absolute", top: 3, right: 3, background: "rgba(35,41,31,0.65)", borderRadius: "50%", width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center" },
   photoStarBtnActive: { background: "rgba(247,243,233,0.9)" },

@@ -25,7 +25,7 @@ export default function PublicFarmList() {
     async function load() {
       const [farmsRes, photosRes] = await Promise.all([
         supabase.from("farms").select("*").order("created_at"),
-        supabase.from("farm_photos").select("farm_id, url, is_cover, media_type"),
+        supabase.from("farm_photos").select("farm_id, url, is_cover, media_type, crop_position"),
       ]);
       if (cancelled) return;
       if (farmsRes.error) console.error("farms load error:", farmsRes.error);
@@ -38,8 +38,8 @@ export default function PublicFarmList() {
       const withPhotos = (farmsRes.data || []).map((f) => {
         // Videos can't render in a small <img> card thumbnail, so the list card only ever picks a photo.
         const farmPhotos = (photosByFarm[f.id] || []).filter((p) => p.media_type !== "video");
-        const cover = farmPhotos.find((p) => p.is_cover)?.url || farmPhotos[0]?.url || null;
-        return { ...f, coverPhoto: cover };
+        const cover = farmPhotos.find((p) => p.is_cover) || farmPhotos[0] || null;
+        return { ...f, coverPhoto: cover?.url || null, coverCropPosition: cover?.crop_position ?? 75 };
       });
       setFarms(withPhotos);
     }
@@ -74,7 +74,7 @@ export default function PublicFarmList() {
         {(farms || []).map((f) => (
           <Link key={f.id} to={`/farm/${f.id}`} style={styles.card}>
             {f.coverPhoto ? (
-              <img src={f.coverPhoto} alt={f.name} style={styles.cardImg} />
+              <img src={f.coverPhoto} alt={f.name} style={{ ...styles.cardImg, objectPosition: `center ${f.coverCropPosition}%` }} />
             ) : (
               <div style={styles.cardImgPlaceholder} />
             )}
