@@ -52,7 +52,7 @@ export default function PublicFarmList() {
   return (
     <div dir={lang === "ar" ? "rtl" : "ltr"} style={styles.page}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Tajawal:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Playfair+Display:ital,wght@1,600&family=Tajawal:wght@400;500;700&display=swap');
         * { -webkit-font-smoothing: antialiased; }
         @keyframes fjFadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fjFadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
@@ -68,13 +68,8 @@ export default function PublicFarmList() {
           <div style={styles.logoGlow} />
           <div style={styles.logoRing}>
             <img src="/icons/icon-192.png" alt="" style={styles.logo} />
+            <div style={styles.logoBadge}>Farms Jo</div>
           </div>
-        </div>
-        <div style={styles.title}>Farms Jo</div>
-        <div style={styles.titleRule}>
-          <span style={styles.titleRuleLine} />
-          <span style={styles.titleRuleDot} />
-          <span style={styles.titleRuleLine} />
         </div>
         <div style={styles.subtitle}>{t(lang, "subtitle")}</div>
       </div>
@@ -132,7 +127,7 @@ const styles = {
     touchAction: "manipulation",
   },
   header: { maxWidth: 480, margin: "0 auto 30px", textAlign: "center" },
-  brandRow: { position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 },
+  brandRow: { position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginTop: 14, marginBottom: 22 },
   logoGlow: {
     position: "absolute",
     width: 170,
@@ -148,11 +143,25 @@ const styles = {
     boxShadow: "0 18px 34px -12px rgba(35,41,31,0.45)",
   },
   logo: { display: "block", width: 84, height: 84, borderRadius: 22, border: "2px solid #F8F3E7" },
-  title: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 34, letterSpacing: "-0.6px", color: "#1A2014" },
-  titleRule: { display: "flex", alignItems: "center", justifyContent: "center", gap: 8, margin: "12px auto 0" },
-  titleRuleLine: { width: 26, height: 2, borderRadius: 2, background: "linear-gradient(90deg, rgba(188,108,37,0), #BC6C25)" },
-  titleRuleDot: { width: 5, height: 5, borderRadius: "50%", background: "#BC6C25" },
-  subtitle: { fontSize: 14, color: "#6B6355", marginTop: 12, fontWeight: 500, letterSpacing: "0.1px" },
+  logoBadge: {
+    position: "absolute",
+    top: -18,
+    left: "50%",
+    transform: "translateX(-50%)",
+    whiteSpace: "nowrap",
+    fontFamily: "'Playfair Display', serif",
+    fontStyle: "italic",
+    fontWeight: 600,
+    fontSize: 16,
+    color: "#1A2014",
+    background: "#FAF6EC",
+    border: "1px solid rgba(188,108,37,0.4)",
+    borderRadius: 999,
+    padding: "5px 16px",
+    boxShadow: "0 10px 20px -8px rgba(35,29,16,0.4)",
+    letterSpacing: "0.2px",
+  },
+  subtitle: { fontSize: 14, color: "#6B6355", marginTop: 4, fontWeight: 500, letterSpacing: "0.1px" },
   shareBtn: {
     position: "fixed", top: 16, left: 16, zIndex: 60,
     display: "flex", alignItems: "center", justifyContent: "center",
