@@ -1141,7 +1141,7 @@ export default function FarmCalendar() {
                   <div key={l.id} style={{ ...styles.farmCard, opacity: l.contacted ? 0.6 : 1 }}>
                     <div style={styles.farmRow}>
                       <div style={{ flex: 1 }}>
-                        <div style={styles.farmRowName}>{l.property_name} <span style={{ fontWeight: 400, color: "#6B6355" }}>({l.property_type === "chalet" ? "شاليه" : "مزرعة"})</span></div>
+                        <div style={styles.farmRowName}>{l.property_name} <span style={{ fontWeight: 400, color: "#6B6355" }}>({l.property_type === "chalet" ? "شاليه" : l.property_type === "villa" ? "فيلا" : "مزرعة"})</span></div>
                         <div style={styles.farmRowLoc}><User size={11} /> {l.name}</div>
                         <div style={styles.farmRowLoc}><Phone size={11} /> {l.phone}</div>
                         {l.location && <div style={styles.farmRowLoc}><MapPin size={11} /> {l.location}</div>}

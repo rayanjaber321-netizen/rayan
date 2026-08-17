@@ -75,6 +75,7 @@ export default function ListYourFarm() {
             <div style={styles.typeRow}>
               <button type="button" onClick={() => setForm({ ...form, propertyType: "farm" })} style={{ ...styles.typeBtn, ...(form.propertyType === "farm" ? styles.typeBtnActive : {}) }}>{t(lang, "propertyTypeFarm")}</button>
               <button type="button" onClick={() => setForm({ ...form, propertyType: "chalet" })} style={{ ...styles.typeBtn, ...(form.propertyType === "chalet" ? styles.typeBtnActive : {}) }}>{t(lang, "propertyTypeChalet")}</button>
+              <button type="button" onClick={() => setForm({ ...form, propertyType: "villa" })} style={{ ...styles.typeBtn, ...(form.propertyType === "villa" ? styles.typeBtnActive : {}) }}>{t(lang, "propertyTypeVilla")}</button>
             </div>
 
             <input className="fc-input" style={styles.input} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder={t(lang, "locationPlaceholder")} />
