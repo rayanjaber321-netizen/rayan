@@ -12,6 +12,9 @@ import {
 } from "./shared.js";
 import { useLang, t, MONTHS, WEEKDAYS_T, translateFarmName } from "./i18n.js";
 import { usePreventPinchZoom } from "./usePreventZoom.js";
+import InstagramIcon from "./InstagramIcon.jsx";
+
+const INSTAGRAM_USERNAME = "q._6v";
 
 function fmtMoneyL(n, lang) {
   const num = (Math.round(n * 100) / 100).toLocaleString("en-US");
@@ -338,6 +341,13 @@ export default function PublicFarmDetail() {
             <a href={`tel:+${CONTACT_PHONE}`} style={{ ...styles.contactBtn, ...styles.callBtn }}>
               <Phone size={16} /> {t(lang, "call")}
             </a>
+            <a
+              href={`https://instagram.com/${INSTAGRAM_USERNAME}`}
+              target="_blank" rel="noopener noreferrer"
+              style={{ ...styles.contactBtn, ...styles.instagramBtn }}
+            >
+              <InstagramIcon size={16} color="#fff" /> {t(lang, "instagram")}
+            </a>
           </div>
         </div>
       </div>
@@ -515,6 +525,7 @@ const styles = {
   contactBtn: { flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "11px 0", borderRadius: 10, fontSize: 13.5, fontWeight: 700, textDecoration: "none" },
   whatsappBtn: { background: "#25D366", color: "#fff" },
   callBtn: { background: "#34345C", color: "#fff" },
+  instagramBtn: { background: "linear-gradient(135deg, #F58529, #DD2A7B, #8134AF, #515BD4)", color: "#fff" },
   monthNav: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   monthLabel: { fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 14 },
   legend: { display: "flex", flexDirection: "column", gap: 5, marginBottom: 10 },

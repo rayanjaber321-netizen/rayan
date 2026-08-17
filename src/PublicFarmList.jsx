@@ -4,6 +4,9 @@ import { MapPin, Share, Check } from "lucide-react";
 import { supabase } from "./supabaseClient.js";
 import { useLang, t, translateFarmName } from "./i18n.js";
 import { usePreventPinchZoom } from "./usePreventZoom.js";
+import InstagramIcon from "./InstagramIcon.jsx";
+
+const INSTAGRAM_USERNAME = "q._6v";
 
 export default function PublicFarmList() {
   const [farms, setFarms] = useState(null);
@@ -80,6 +83,17 @@ export default function PublicFarmList() {
       <button className="fj-glass" onClick={shareSite} style={styles.shareBtn} aria-label={t(lang, "share")}>
         {shared ? <Check size={16} /> : <Share size={16} />}
       </button>
+
+      <a
+        className="fj-glass"
+        href={`https://instagram.com/${INSTAGRAM_USERNAME}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={styles.instaBtn}
+        aria-label="Instagram"
+      >
+        <InstagramIcon size={17} color="#3A3428" />
+      </a>
 
       <div className="fj-glass" style={styles.langSwitch}>
         <button onClick={() => setLang("ar")} style={{ ...styles.langOption, ...(lang === "ar" ? styles.langOptionActive : {}) }} aria-label="العربية">🇯🇴</button>
@@ -167,6 +181,14 @@ const styles = {
     width: 42, height: 42, border: "1px solid rgba(255,255,255,0.7)",
     background: "rgba(250,246,236,0.55)", backdropFilter: "blur(16px) saturate(1.4)", WebkitBackdropFilter: "blur(16px) saturate(1.4)",
     borderRadius: "50%", color: "#3A3428", cursor: "pointer",
+    boxShadow: "0 10px 22px -8px rgba(35,29,16,0.35), inset 0 1px 0 rgba(255,255,255,0.6)",
+  },
+  instaBtn: {
+    position: "fixed", top: 66, left: 16, zIndex: 60,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    width: 42, height: 42, border: "1px solid rgba(255,255,255,0.7)",
+    background: "rgba(250,246,236,0.55)", backdropFilter: "blur(16px) saturate(1.4)", WebkitBackdropFilter: "blur(16px) saturate(1.4)",
+    borderRadius: "50%", color: "#3A3428", textDecoration: "none", cursor: "pointer",
     boxShadow: "0 10px 22px -8px rgba(35,29,16,0.35), inset 0 1px 0 rgba(255,255,255,0.6)",
   },
   langSwitch: {
