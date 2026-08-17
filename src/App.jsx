@@ -3,6 +3,7 @@ import FarmCalendar from "./FarmCalendar.jsx";
 import AdminGate from "./AdminGate.jsx";
 import PublicFarmList from "./PublicFarmList.jsx";
 import PublicFarmDetail from "./PublicFarmDetail.jsx";
+import ListYourFarm from "./ListYourFarm.jsx";
 
 function App() {
   return (
@@ -10,6 +11,7 @@ function App() {
       <Routes>
         <Route path="/" element={<PublicFarmList />} />
         <Route path="/farm/:farmId" element={<PublicFarmDetail />} />
+        <Route path="/list-your-farm" element={<ListYourFarm />} />
         <Route
           path="/admin"
           element={

@@ -126,6 +126,10 @@ export default function PublicFarmList() {
           </div>
         ))}
       </div>
+
+      <Link to="/list-your-farm" style={styles.ownerLink}>
+        {t(lang, "ownerCta")}
+      </Link>
     </div>
   );
 }
@@ -202,6 +206,11 @@ const styles = {
   langOptionActive: { opacity: 1, background: "#FFFFFF", boxShadow: "0 3px 8px rgba(35,41,31,0.2)" },
   loading: { textAlign: "center", color: "#6B6355", padding: 30 },
   grid: { maxWidth: 480, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 },
+  ownerLink: {
+    display: "block", maxWidth: 480, margin: "26px auto 0", textAlign: "center",
+    fontSize: 13, fontWeight: 700, color: "#6B6355", textDecoration: "none",
+    padding: "12px 16px", borderRadius: 14, border: "1px dashed #C9BC98",
+  },
   cardFrame: {
     padding: 4, borderRadius: 29,
     background: "linear-gradient(135deg, #E3A34E, #BC6C25)",

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { Sun, Moon, X, Settings, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Banknote, CreditCard, Landmark, Trash2, User, Phone, StickyNote, Plus, MapPin, Pencil, RefreshCw, Wallet, LogOut, Star, CalendarDays, Link2, Unlink, Play } from "lucide-react";
+import { Sun, Moon, X, Settings, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Banknote, CreditCard, Landmark, Trash2, User, Phone, StickyNote, Plus, MapPin, Pencil, RefreshCw, Wallet, LogOut, Star, CalendarDays, Link2, Unlink, Play, CheckCircle2, Circle } from "lucide-react";
 import { supabase } from "./supabaseClient.js";
 import {
   ARABIC_MONTHS, WEEKDAYS, WEEKDAY_KEYS, DEFAULT_TIMES, farmTimes,
@@ -157,17 +157,19 @@ export default function FarmCalendar() {
   const [currentEmail, setCurrentEmail] = useState("");
   const [accountDraft, setAccountDraft] = useState({ email: "", password: "", confirmPassword: "" });
   const [savingAccount, setSavingAccount] = useState(false);
+  const [ownerLeads, setOwnerLeads] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [farmsRes, pricesRes, bookingsRes, financeRes, photosRes, commissionRes] = await Promise.all([
+      const [farmsRes, pricesRes, bookingsRes, financeRes, photosRes, commissionRes, leadsRes] = await Promise.all([
         supabase.from("farms").select("*").order("created_at"),
         supabase.from("farm_prices").select("*"),
         supabase.from("bookings").select("*"),
         supabase.from("finance_items").select("*"),
         supabase.from("farm_photos").select("*").order("created_at"),
         supabase.from("farm_commission_settings").select("*"),
+        supabase.from("owner_leads").select("*").order("created_at", { ascending: false }),
       ]);
       if (cancelled) return;
 
@@ -200,6 +202,7 @@ export default function FarmCalendar() {
       setFinances(financesById);
       setPhotos(photosById);
       setCommissionSettings(commissionById);
+      setOwnerLeads(leadsRes.data || []);
       if (loadedFarms.length) {
         setSelectedFarmId(loadedFarms[0].id);
         setPricingFarmId(loadedFarms[0].id);
@@ -502,6 +505,16 @@ export default function FarmCalendar() {
     setFarms(nextFarms);
     if (selectedFarmId === id) setSelectedFarmId(nextFarms[0].id);
     const { error } = await supabase.from("farms").delete().eq("id", id);
+    if (error) console.error(error);
+  }
+  async function toggleLeadContacted(id, contacted) {
+    setOwnerLeads((prev) => prev.map((l) => (l.id === id ? { ...l, contacted } : l)));
+    const { error } = await supabase.from("owner_leads").update({ contacted }).eq("id", id);
+    if (error) console.error(error);
+  }
+  async function deleteLead(id) {
+    setOwnerLeads((prev) => prev.filter((l) => l.id !== id));
+    const { error } = await supabase.from("owner_leads").delete().eq("id", id);
     if (error) console.error(error);
   }
   async function savePricing() {
@@ -873,6 +886,9 @@ export default function FarmCalendar() {
               <button className="fc-btn" onClick={() => { setSettingsTab("pricing"); setPricingFarmId(selectedFarmId); setDraftPrices({ ...defaultPriceSet(), aliFee: REFERRAL_FEE, rayanFee: REFERRAL_FEE, ...(prices[selectedFarmId] || {}), ...(commissionSettings[selectedFarmId] || {}) }); }} style={{ ...styles.tabBtn, ...(settingsTab === "pricing" ? styles.tabBtnActive : {}) }}>الأسعار</button>
               <button className="fc-btn" onClick={() => { setSettingsTab("photos"); setPricingFarmId(selectedFarmId); }} style={{ ...styles.tabBtn, ...(settingsTab === "photos" ? styles.tabBtnActive : {}) }}>الصور</button>
               <button className="fc-btn" onClick={() => setSettingsTab("account")} style={{ ...styles.tabBtn, ...(settingsTab === "account" ? styles.tabBtnActive : {}) }}>الحساب</button>
+              <button className="fc-btn" onClick={() => setSettingsTab("leads")} style={{ ...styles.tabBtn, ...(settingsTab === "leads" ? styles.tabBtnActive : {}) }}>
+                طلبات الانضمام{ownerLeads.filter((l) => !l.contacted).length > 0 ? ` (${ownerLeads.filter((l) => !l.contacted).length})` : ""}
+              </button>
             </div>
 
             {settingsTab === "farms" && (
@@ -1115,6 +1131,34 @@ export default function FarmCalendar() {
                 <button className="fc-btn" onClick={saveAccount} disabled={savingAccount} style={{ ...styles.saveBtn, marginTop: 10, marginRight: 0, opacity: savingAccount ? 0.6 : 1 }}>
                   {savingAccount ? "...جاري الحفظ" : "حفظ بيانات الدخول"}
                 </button>
+              </div>
+            )}
+
+            {settingsTab === "leads" && (
+              <div style={styles.formGrid}>
+                {ownerLeads.length === 0 && <div style={{ fontSize: 13, color: "#6B6355", textAlign: "center", padding: "20px 0" }}>لا يوجد طلبات انضمام حالياً</div>}
+                {ownerLeads.map((l) => (
+                  <div key={l.id} style={{ ...styles.farmCard, opacity: l.contacted ? 0.6 : 1 }}>
+                    <div style={styles.farmRow}>
+                      <div style={{ flex: 1 }}>
+                        <div style={styles.farmRowName}>{l.property_name} <span style={{ fontWeight: 400, color: "#6B6355" }}>({l.property_type === "chalet" ? "شاليه" : "مزرعة"})</span></div>
+                        <div style={styles.farmRowLoc}><User size={11} /> {l.name}</div>
+                        <div style={styles.farmRowLoc}><Phone size={11} /> {l.phone}</div>
+                        {l.location && <div style={styles.farmRowLoc}><MapPin size={11} /> {l.location}</div>}
+                        {l.message && <div style={{ fontSize: 11.5, color: "#4A453A", marginTop: 4 }}>{l.message}</div>}
+                      </div>
+                      <button className="fc-btn" onClick={() => deleteLead(l.id)} style={styles.iconBtnSmall} aria-label="حذف"><Trash2 size={14} color="#791F1F" /></button>
+                    </div>
+                    <div style={styles.calendarRow}>
+                      <a className="fc-btn" href={`https://wa.me/${l.phone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" style={styles.calendarLinkBtn}>
+                        <Phone size={12} /> واتساب
+                      </a>
+                      <button className="fc-btn" onClick={() => toggleLeadContacted(l.id, !l.contacted)} style={{ ...styles.calendarLinkBtn, marginRight: "auto" }}>
+                        {l.contacted ? <CheckCircle2 size={12} /> : <Circle size={12} />} {l.contacted ? "تم التواصل" : "لسا"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
